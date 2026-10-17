@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: greetday
+          POSTGRES_PASSWORD: greetday_ci
+          POSTGRES_DB: greetday_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U greetday -d greetday_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://greetday:greetday_ci@localhost:5432/greetday_dev
+      TEST_DATABASE_URL: postgres://greetday:greetday_ci@localhost:5432/greetday_test
+      NX_NO_CLOUD: true
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # nx affected needs history to find the base commit
+
+      - uses: pnpm/action-setup@v6 # version comes from "packageManager" in package.json
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Sets NX_BASE / NX_HEAD: last successful main run on push, the PR base on pull requests.
+      - uses: nrwl/nx-set-shas@v5
+
+      - name: Create test database
+        run: psql "$DATABASE_URL" -c 'CREATE DATABASE greetday_test'
+
+      - name: Apply migrations
+        run: pnpm nx run db:db:migrate
+
+      - run: pnpm nx sync:check
+
+      - run: pnpm nx affected -t lint typecheck test
