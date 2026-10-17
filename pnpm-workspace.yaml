@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'libs/*'
+
+# pnpm blocks dependency build scripts by default; list the ones we trust.
+allowBuilds:
+  '@swc/core': true
+  nx: true
