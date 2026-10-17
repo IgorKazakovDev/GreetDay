@@ -15,7 +15,12 @@ const LOCAL_HOSTS = new Set([
   'host.docker.internal',
 ]);
 const input = await readInput();
-const cmd = String(input.tool_input?.command ?? '');
+// Ignore free text that is data, not commands: heredoc bodies and message/title/body arguments
+// (e.g. a commit message that mentions "rm -rf"). Like permission rules, this is a guard rail,
+// not a sandbox: `bash -c` or a script can still bypass it.
+const cmd = String(input.tool_input?.command ?? '')
+  .replace(/<<-?\s*['"]?(\w+)['"]?[\s\S]*?\n\s*\1(?=\s|$)/g, '<<HEREDOC')
+  .replace(/(\s(?:-m|--message|--body|--title|--notes)[\s=]+)("(?:[^"\\]|\\.)*"|'[^']*')/g, '$1""');
 
 // 1. Database URLs / hosts
 for (const m of cmd.matchAll(/postgres(?:ql)?:\/\/(?:[^@\s'"]*@)?(\[[^\]]+\]|[^:/\s'"?]+)/g)) {

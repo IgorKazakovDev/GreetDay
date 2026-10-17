@@ -9,7 +9,7 @@ mcpServers:
       type: http
       url: https://api.githubcopilot.com/mcp/x/issues/readonly
       headers:
-        Authorization: 'Bearer ${GITHUB_PAT}'
+        Authorization: 'Bearer ${GITHUB_PAT:-}'
 ---
 
 You are the business analyst for GreetDay, a birthday-tracker mobile app built by a solo developer.
