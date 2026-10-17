@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/.expo
+.nx
+.git
+.env
+.env.*
+tmp
