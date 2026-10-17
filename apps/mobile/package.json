@@ -1,0 +1,40 @@
+{
+  "name": "@greetday/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "eas-build-post-install": "cd ../../ && node tools/scripts/eas-build-post-install.mjs . apps/mobile"
+  },
+  "nx": {
+    "name": "mobile",
+    "tags": [
+      "scope:mobile",
+      "type:app"
+    ]
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@greetday/contracts": "workspace:*",
+    "@greetday/design-tokens": "workspace:*",
+    "@greetday/domain": "workspace:*",
+    "expo": "~58.0.14",
+    "expo-constants": "~58.0.12",
+    "expo-linking": "~58.0.13",
+    "expo-router": "~58.0.23",
+    "expo-splash-screen": "~58.0.10",
+    "expo-status-bar": "~58.0.3",
+    "expo-system-ui": "~58.0.6",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "zod": "^4.6.7"
+  },
+  "main": "expo-router/entry",
+  "devDependencies": {
+    "@testing-library/react-native": "^14.1.0",
+    "@types/react": "^19.3.0",
+    "babel-preset-expo": "^58.0.17",
+    "jest-expo": "~58.0.11"
+  }
+}

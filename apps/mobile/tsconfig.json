@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": [".expo/types/**/*.ts", "expo-env.d.ts"],
+  "references": [
+    {
+      "path": "../../libs/domain"
+    },
+    {
+      "path": "../../libs/design-tokens"
+    },
+    {
+      "path": "../../libs/contracts"
+    },
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
