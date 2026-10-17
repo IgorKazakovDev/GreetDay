@@ -18,7 +18,50 @@
     "tags": [
       "scope:db",
       "type:lib"
-    ]
+    ],
+    "targets": {
+      "db:generate": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "{projectRoot}",
+          "command": "drizzle-kit generate"
+        },
+        "cache": false
+      },
+      "db:migrate": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "{projectRoot}",
+          "command": "tsx scripts/assert-local-db.ts && drizzle-kit migrate"
+        },
+        "cache": false
+      },
+      "db:studio": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "{projectRoot}",
+          "command": "drizzle-kit studio"
+        },
+        "continuous": true,
+        "cache": false
+      },
+      "db:seed": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "{projectRoot}",
+          "command": "tsx scripts/assert-local-db.ts && tsx scripts/seed.ts"
+        },
+        "cache": false
+      }
+    }
   },
-  "dependencies": {}
+  "dependencies": {
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
+  }
 }
