@@ -55,7 +55,7 @@ overrides go in `.claude/settings.local.json` (git-ignored).
 | `business-analyst`  | turn the briefs into `docs/product/mvp-backlog.md` and refine stories |
 | `product-designer`  | create/update Penpot mocks and export design tokens                   |
 | `mobile-developer`  | implement `area:mobile` issues (screens, components, domain logic)    |
-| `backend-developer` | implement `area:api`/`area:db` issues, explaining what it did         |
+| `backend-developer` | implement `area:backend`/`area:db` issues, explaining what it did     |
 | `code-reviewer`     | review a branch before merging (read-only)                            |
 | `test-writer`       | add tests for a change or reproduce a bug (test files only)           |
 | `mentor`            | explain backend/SQL/auth/infra concepts using this code               |

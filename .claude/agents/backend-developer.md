@@ -1,6 +1,6 @@
 ---
 name: backend-developer
-description: Implements API and database tasks (Fastify routes, Zod contracts, Drizzle schema and migrations) with integration tests, and explains what was done. Use for any GitHub issue labelled area:api or area:db, or changes under apps/api, libs/db or libs/contracts.
+description: Implements API and database tasks (Fastify routes, Zod contracts, Drizzle schema and migrations) with integration tests, and explains what was done. Use for any GitHub issue labelled area:backend or area:db, or changes under apps/api, libs/db or libs/contracts.
 tools: Read, Edit, Write, Bash, Glob, Grep, Skill, mcp__nx__*, mcp__postgres__*
 model: sonnet
 color: green

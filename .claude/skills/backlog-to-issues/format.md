@@ -1,47 +1,39 @@
 # mvp-backlog.md format
 
-```markdown
-# MVP Backlog
+The format is defined in [docs/product/ba-brief.md](../../../docs/product/ba-brief.md) §9 (issue
+sections), §8 (labels, issue templates) and §7 (milestones). [example-backlog.md](example-backlog.md)
+is a small complete sample. This file only lists the extra rules `backlog-to-issues.mjs` relies on.
 
-Free text here is ignored.
+## What becomes an issue
 
-## M1: Foundations
+- Every `### [ID] Title` heading starts an issue; the GitHub title is `[ID] Title`.
+  IDs: `E<n>` epic, `E<n>-S<m>` story, `E<n>-S<m>-T<k>` task, `SP-<n>` spike.
+- Everything else is ignored: the intro, the summary table, and the document sections
+  `## Summary`, `## Issues`, `## Dependency order` / `## Build order`, `## Traceability check`,
+  `## Open questions` and `## Already in place` (numbering like `## 3. Dependency order` is fine).
+  Those headings also end the issue above them.
 
-Optional milestone description (one paragraph).
+## Inside an issue section
 
-### E1: Accounts and sign-in
+1. Metadata bullets right after the heading, in any order:
 
-Labels: type:epic, area:api, area:mobile, priority:p0
-Epic description in Markdown.
+   | Bullet          | Required       | Values                                                                                     |
+   | --------------- | -------------- | ------------------------------------------------------------------------------------------ |
+   | `- Type:`       | yes            | `epic`, `story`, `task`, `spike`; must match the ID shape                                  |
+   | `- Parent:`     | stories, tasks | story → its epic (`E3`), task → its story (`E3-S2`); spike: optional, an epic or story     |
+   | `- Labels:`     | yes            | §8 labels only: one `type:` matching Type, one `priority:`, ≥ 1 `area:` (tasks: exactly 1) |
+   | `- Milestone:`  | yes            | `M1`–`M4`                                                                                  |
+   | `- Size:`       | tasks, spikes  | tasks/spikes `XS`, `S`, `M`; epics/stories `—` or `XS`–`L`                                 |
+   | `- Blocked by:` | no             | comma-separated IDs from this file (or `#123` for an existing issue), `—` for none         |
 
-#### E1.1: Sign in with email magic link
+   A trailing `(comment)` in a value is ignored.
 
-Labels: type:story, area:api, priority:p0
-As a … I want … so that …
+2. Then the body, using the §8 template for its type. Body sections are `##` headings
+   (`## Goal`, `## Acceptance criteria`…); use `####` for anything deeper, never `###`.
+   Headings inside code fences are ignored.
 
-**Acceptance criteria**
+## Warnings
 
-- [ ] Given …, when …, then …
-
-**Out of scope** …
-**Design** S-01
-**Notes** …
-
-## Later: Not in MVP
-
-### E9: …
-
-## Open questions
-
-Anything under a level-2 heading without an `ID:` prefix is ignored.
-```
-
-Rules:
-
-- `## <MilestoneID>: <title>` starts a milestone (IDs like `M1`, `M2`, `Later`).
-- `### <EpicID>: <title>` is an epic issue (`E1`, `E2`…), `#### <StoryID>: <title>` is a story
-  sub-issue of the epic above it (`E1.1`, `E1.2`…). IDs must be unique.
-- An optional `Labels:` line right after the heading, comma-separated.
-- Everything else until the next heading of the same or higher level is the issue body. Inside a
-  story, use bold text or `#####` headings for sub-sections, never `##`–`####`.
-- Issue titles become `[E1.1] Sign in with email magic link`.
+The dry run reports malformed sections (bad or duplicate IDs, unknown labels such as `area:api`,
+wrong Parent, missing metadata, tasks larger than M, unknown Blocked-by IDs). `--apply` refuses to
+run until there are none.
