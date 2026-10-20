@@ -8,7 +8,7 @@
 ## Context
 
 GreetDay is a mobile app (Expo) with a small API (Fastify + PostgreSQL), built by one developer who
-is strong on mobile and learning backend. Most implementation work will be done with Claude Code
+is strong in React on the web and learning backend and React Native. Most implementation work will be done with Claude Code
 agents, so the repo has to make boundaries, commands and conventions machine-readable, and has to
 keep agents away from anything destructive. Contracts must be shared between the app and the API.
 

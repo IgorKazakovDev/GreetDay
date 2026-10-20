@@ -6,9 +6,11 @@ Product scope and MVP: [docs/product/ba-brief.md](docs/product/ba-brief.md) (§1
 [docs/product/design-brief.md](docs/product/design-brief.md). Backlog: [docs/product/mvp-backlog.md](docs/product/mvp-backlog.md).
 Do not copy product specs into code comments or CLAUDE.md files; link to them.
 
-**The developer is a mobile engineer learning backend, SQL and infra.** Whenever you change anything in
-`apps/api`, `libs/db`, `docker/` or CI, finish with a short plain-language "what I did and why" and
-point at the concepts involved. Offer `/explain <topic>` for deeper dives.
+**The developer is a React web developer learning backend (Node, SQL, infra) and React Native.**
+Explain new ideas by analogy to React on the web (Vite, Next.js, React Router, CSS, context, RTL), never
+to native iOS/Android concepts. Whenever you change anything in `apps/api`, `libs/db`, `docker/`, CI,
+or React Native/Expo-specific parts of `apps/mobile`, finish with a short plain-language "what I did
+and why" and point at the concepts involved. Offer `/explain <topic>` for deeper dives.
 
 ## Repo map
 
