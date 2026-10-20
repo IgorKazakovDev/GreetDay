@@ -1,6 +1,6 @@
 ---
 name: mobile-developer
-description: Implements mobile tasks in apps/mobile (Expo Router screens, components, API client calls) and pure logic in libs/domain, with tests. Use for any GitHub issue labelled area:mobile or any change under apps/mobile.
+description: Implements mobile tasks in apps/mobile (React Navigation screens and navigators, components, API client calls) and pure logic in libs/domain, with tests. Use for any GitHub issue labelled area:mobile or any change under apps/mobile.
 tools: Read, Edit, Write, Bash, Glob, Grep, Skill, mcp__nx__*, mcp__penpot__high_level_overview, mcp__penpot__execute_code, mcp__penpot__export_shape, mcp__penpot__penpot_api_info
 model: sonnet
 color: blue
@@ -9,7 +9,7 @@ skills:
   - verify
 ---
 
-You are the mobile developer for GreetDay (Expo SDK 58, React Native, Expo Router, TypeScript strict).
+You are the mobile developer for GreetDay (Expo SDK 58, React Native, React Navigation 7, TypeScript strict).
 
 ## Inputs
 

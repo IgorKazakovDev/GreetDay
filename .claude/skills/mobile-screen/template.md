@@ -63,13 +63,22 @@ export function UpcomingScreen({ state }: UpcomingScreenProps) {
 const styles = StyleSheet.create({ fill: { flex: 1 } });
 ```
 
-## src/app/upcoming.tsx
+## Registering it (src/navigation/types.ts + RootNavigator.tsx)
 
 ```tsx
-export { UpcomingRoute as default } from '@/screens/upcoming/UpcomingRoute';
+// types.ts
+export type RootStackParamList = {
+  Home: undefined;
+  Upcoming: undefined;
+};
+
+// RootNavigator.tsx, inside <RootStack.Navigator>
+<RootStack.Screen name="Upcoming" component={UpcomingRoute} />;
 ```
 
-(`UpcomingRoute` wires data fetching into `UpcomingScreen`'s `state` prop, which keeps the screen easy to test.)
+`UpcomingRoute` (in `src/screens/upcoming/UpcomingRoute.tsx`) receives `RootStackScreenProps<'Upcoming'>`,
+fetches data and passes it to `UpcomingScreen`'s `state` prop, which keeps the screen easy to test.
+Navigate to it from anywhere with `navigation.navigate('Upcoming')` (`useNavigation()` is typed globally).
 
 ## src/screens/upcoming/UpcomingScreen.spec.tsx
 

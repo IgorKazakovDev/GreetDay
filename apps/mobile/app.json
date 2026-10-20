@@ -30,11 +30,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-status-bar",
-      "expo-router"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+      "expo-status-bar"
+    ]
   }
 }

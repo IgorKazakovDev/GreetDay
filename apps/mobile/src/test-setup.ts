@@ -32,3 +32,10 @@ defineGlobal('URLSearchParams', globalThis.URLSearchParams);
 if (typeof global.structuredClone === 'undefined') {
   global.structuredClone = (object) => JSON.parse(JSON.stringify(object));
 }
+
+// SafeAreaProvider renders nothing until it has measured the device, which never happens in Jest.
+// The library ships this mock (fixed frame and insets) for tests.
+jest.mock(
+  'react-native-safe-area-context',
+  () => jest.requireActual('react-native-safe-area-context/jest/mock').default,
+);

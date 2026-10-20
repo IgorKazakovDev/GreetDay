@@ -1,6 +1,6 @@
 ---
 name: mobile-screen
-description: Creates or rebuilds an Expo Router screen from a design-brief screen ID (e.g. S-03) with loading, empty, error and success states, theme tokens only, accessibility labels and a component test. Use whenever a screen is added to apps/mobile.
+description: Creates or rebuilds a React Navigation screen from a design-brief screen ID (e.g. S-03) with loading, empty, error and success states, theme tokens only, accessibility labels and a component test. Use whenever a screen is added to apps/mobile.
 argument-hint: '<screen-id, e.g. S-03>'
 ---
 
@@ -17,7 +17,8 @@ Read `apps/mobile/CLAUDE.md` and `.claude/rules/mobile-ui.md`. Templates: [templ
 3. **Files:**
    - `src/screens/<name>/<Name>Screen.tsx`, starting with `// <ID> <Name>`
    - `src/screens/<name>/<Name>Screen.spec.tsx`
-   - `src/app/<route>.tsx`: one-line re-export (never put anything else in `src/app/`)
+   - Register it: params in `RootStackParamList` (`src/navigation/types.ts`), then a
+     `<RootStack.Screen name="<Name>" component={<Name>Route} />` in `RootNavigator.tsx`
 4. **States:** loading, empty, error (with retry), success. All copy from the brief.
 5. **Styling:** `useTheme()` tokens only. Lists use `FlatList`/`SectionList`.
 6. **Accessibility:** header role on the title, labels on every touchable and icon, 44 pt

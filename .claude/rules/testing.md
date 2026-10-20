@@ -36,8 +36,9 @@ paths:
 
 - Query by role, label or text (`getByRole('button', { name: 'Save' })`), never by testID unless nothing else works.
 - Mock the API at `src/api/client.ts` boundaries, not `fetch` internals.
-- Wrap screens that use safe-area insets in `SafeAreaProvider` with `initialMetrics`.
-- Never put tests under `src/app/`: Expo Router would treat them as routes.
+- `react-native-safe-area-context` is mocked globally in `src/test-setup.ts`; no wrapper needed.
+- Screens that call `useNavigation()` need a navigator around them: render `<App />` (or a small
+  `NavigationContainer` + stack) instead of mocking navigation.
 
 ## General
 

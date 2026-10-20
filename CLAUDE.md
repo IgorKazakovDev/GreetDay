@@ -16,7 +16,7 @@ and why" and point at the concepts involved. Offer `/explain <topic>` for deeper
 
 | Path                 | What                                                     | Nx project      | Tags                       |
 | -------------------- | -------------------------------------------------------- | --------------- | -------------------------- |
-| `apps/mobile`        | Expo SDK 58 + Expo Router app                            | `mobile`        | `scope:mobile`, `type:app` |
+| `apps/mobile`        | Expo SDK 58 + React Navigation app                       | `mobile`        | `scope:mobile`, `type:app` |
 | `apps/api`           | Fastify 5 API                                            | `api`           | `scope:api`, `type:app`    |
 | `libs/contracts`     | Zod schemas + inferred types shared by api and mobile    | `contracts`     | `scope:shared`             |
 | `libs/domain`        | Pure business logic (dates, age, Feb 29, greeted window) | `domain`        | `scope:shared`             |

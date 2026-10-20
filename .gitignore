@@ -69,3 +69,6 @@ npm-debug.*
 web-build/
 cache/
 test-output
+
+# TypeScript incremental build caches
+*.tsbuildinfo

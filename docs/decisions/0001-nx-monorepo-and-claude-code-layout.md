@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-10-18
 - **Deciders:** Igor Kazakov (drafted by Claude Code during repository setup)
-- **Related:** repository setup brief v1.0 (`birthday-tracker-setup-prompt.md`, kept outside this repo)
+- **Related:** repository setup brief v1.0 (`birthday-tracker-setup-prompt.md`, kept outside this repo).
+  The Expo Router choice below is superseded by [ADR 0002](0002-react-navigation-instead-of-expo-router.md).
 
 ## Context
 
