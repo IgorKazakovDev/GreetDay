@@ -6,14 +6,14 @@ Claude Code agent layer. Product docs: [docs/product](docs/product/). Architectu
 
 ## Prerequisites
 
-| Tool           | Version                       | Notes                                                                              |
-| -------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
-| Node.js        | 24 LTS (`.nvmrc`)             | `nvm use`                                                                          |
-| pnpm           | 12 (pinned in `package.json`) | `corepack enable pnpm`                                                             |
-| Docker Desktop | with Compose v2               | Postgres runs in Docker                                                            |
-| Expo Go        | latest, on your phone         | or Xcode / Android Studio for simulators                                           |
-| GitHub CLI     | `gh`                          | for `/backlog-to-issues` and PRs. Install: `brew install gh`, then `gh auth login` |
-| Claude Code    | latest                        | `claude` in this folder                                                            |
+| Tool           | Version                       | Notes                                                                                                                     |
+| -------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Node.js        | 24 LTS (`.nvmrc`)             | `nvm use`                                                                                                                 |
+| pnpm           | 12 (pinned in `package.json`) | `corepack enable pnpm`                                                                                                    |
+| Docker Desktop | with Compose v2               | Postgres runs in Docker                                                                                                   |
+| Expo Go        | latest, on your phone         | or Xcode / Android Studio for simulators                                                                                  |
+| GitHub CLI     | `gh`                          | for `/backlog-to-issues` and PRs. Install the macOS .pkg from cli.github.com (or `brew install gh`), then `gh auth login` |
+| Claude Code    | latest                        | `claude` in this folder                                                                                                   |
 
 ## First-time setup
 

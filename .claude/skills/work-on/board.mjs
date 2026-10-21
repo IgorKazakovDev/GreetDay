@@ -51,7 +51,7 @@ function gh(argv) {
     } catch (err) {
       if (err.code === 'ENOENT')
         fail(
-          'The GitHub CLI (gh) is not installed. Install it with `brew install gh`, then run `gh auth login`.',
+          'The GitHub CLI (gh) is not installed. Install it from https://cli.github.com (macOS .pkg, or `brew install gh`), then run `gh auth login`.',
         );
       const message = (err.stderr?.toString() || err.message).trim();
       if (RATE_LIMITED.test(message) && attempt < RETRIES) {
