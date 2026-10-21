@@ -1,19 +1,24 @@
 #!/usr/bin/env node
 // Turn docs/product/mvp-backlog.md (format: docs/product/ba-brief.md §9, parser rules: format.md)
 // into GitHub labels, milestones, issues, sub-issue links and blocked-by links with the gh CLI.
-//   node backlog-to-issues.mjs [backlog.md] [--apply] [--repo owner/name] [--project <number>]
-// Dry run by default. Idempotent: an issue whose title starts with the same [ID] is skipped, and
-// existing issues are never edited, closed or deleted. Extras (issue types, Project fields) are
-// skipped with a reason when the repo or token doesn't support them.
-import { readFileSync } from 'node:fs';
+//   node backlog-to-issues.mjs [backlog.md] [--apply] [--milestone M0,M1] [--repo owner/name]
+//                              [--project <number>]
+// Dry run by default. Idempotent and resumable: an issue whose title starts with the same [ID] is
+// not re-created, and a re-run adds any missing sub-issue link, blocked-by link, Project item or
+// empty Project field. Existing titles and bodies are never edited, nothing is closed or deleted.
+// Extras (issue types, Project fields) are skipped with a reason when unsupported.
+import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // ba-brief §7
 export const MILESTONES = {
   M0: {
     title: 'M0 Design',
-    description: 'Penpot tokens, components, every MVP screen and flow are designed and handed off.',
+    description:
+      'Penpot tokens, components, every MVP screen and flow are designed and handed off.',
   },
   M1: { title: 'M1 Foundations', description: 'User can sign in and sees the empty tabbed app.' },
   M2: {
@@ -253,95 +258,206 @@ function normalize(raw, byId, warnings) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// gh helpers. execFileSync with argument arrays: no shell, so titles and bodies are never parsed
-// as shell syntax.
+// gh. execFileSync with argument arrays: no shell, so titles and bodies are never parsed as shell
+// syntax. GitHub's secondary limits allow ~80 content-creating requests per minute and 500 per
+// hour (web UI actions count too), so writes are paced: at least WRITE_DELAY_MS apart, and a
+// pause before HOURLY_WRITES in a rolling hour. The hour's write times are kept in a temp file so
+// back-to-back runs share the budget. Rate-limited calls are retried with retry-after /
+// x-ratelimit-reset, or 60 s doubling. BACKLOG_* env vars only exist so tests can shrink waits.
 
-function gh(argv, input) {
-  return execFileSync('gh', argv, {
-    encoding: 'utf8',
-    input,
-    stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
-    maxBuffer: 64 * 1024 * 1024,
-  }).trim();
+const WRITE_DELAY_MS = Number(process.env.BACKLOG_WRITE_DELAY_MS ?? 1000);
+const RETRY_MIN_MS = Number(process.env.BACKLOG_RETRY_MIN_MS ?? 60_000);
+const RETRIES = Number(process.env.BACKLOG_RETRIES ?? 5);
+const HOURLY_WRITES = Number(process.env.BACKLOG_HOURLY_WRITES ?? 450);
+const WINDOW_MS = Number(process.env.BACKLOG_WINDOW_MS ?? 3_600_000);
+const WRITE_LOG =
+  process.env.BACKLOG_WRITE_LOG ?? join(tmpdir(), 'backlog-to-issues-write-times.json');
+const GH_CALL_MS = 700; // rough duration of one gh call, used for estimates only
+
+const RATE_LIMITED =
+  /secondary rate limit|abuse detection|submitted too quickly|HTTP 429|rate limit exceeded/i;
+const NOT_SUPPORTED = /HTTP 404|HTTP 410|Not Found/i;
+
+class GhError extends Error {}
+class RateLimited extends Error {}
+
+const sleep = (ms) => ms > 0 && Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const clock = (ms) =>
+  new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const seconds = (ms) => `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`;
+
+export function formatDuration(ms) {
+  if (ms <= 0) return 'no time';
+  const min = Math.ceil(ms / 60_000);
+  const h = Math.floor(min / 60);
+  return `~${h ? `${h} h${min % 60 ? ` ${min % 60} min` : ''}` : `${Math.max(1, min)} min`}`;
 }
 
-function tryGh(argv, input) {
+let writeTimes = (() => {
   try {
-    return { ok: true, out: gh(argv, input) };
-  } catch (err) {
-    const message = (err.stderr?.toString() || err.message).trim().split('\n')[0];
-    return { ok: false, error: message };
+    const times = JSON.parse(readFileSync(WRITE_LOG, 'utf8'));
+    return Array.isArray(times) ? times.filter(Number.isFinite).sort((a, b) => a - b) : [];
+  } catch {
+    return [];
+  }
+})();
+let lastWrite = 0;
+
+function writesInWindow() {
+  const since = Date.now() - WINDOW_MS;
+  writeTimes = writeTimes.filter((t) => t > since);
+  return writeTimes.length;
+}
+
+function paceWrite() {
+  sleep(lastWrite + WRITE_DELAY_MS - Date.now());
+  if (writesInWindow() >= HOURLY_WRITES) {
+    const resumeAt = writeTimes[writeTimes.length - HOURLY_WRITES] + WINDOW_MS;
+    console.log(
+      `  … paused: ${writeTimes.length} writes in the last hour (this script pauses at ${HOURLY_WRITES}; GitHub allows 500). Resuming at ${clock(resumeAt)}. Ctrl-C is safe: a re-run resumes.`,
+    );
+    sleep(resumeAt - Date.now() + 100);
+    writesInWindow();
   }
 }
 
-const jsonLines = (argv) =>
-  gh(argv)
-    .split('\n')
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
-
-function api(method, path, body) {
-  const res = tryGh(['api', '-X', method, path, '--input', '-'], JSON.stringify(body));
-  return res.ok ? { ok: true, data: res.out ? JSON.parse(res.out) : null } : res;
+function recordWrite() {
+  lastWrite = Date.now();
+  writeTimes.push(lastWrite);
+  try {
+    writeFileSync(WRITE_LOG, JSON.stringify(writeTimes));
+  } catch {
+    // only affects pacing across runs
+  }
 }
 
-const notSupported = (error) => /HTTP 404|HTTP 410|Not Found/i.test(error);
+/** `gh api --include` output → status, lower-cased headers and body. */
+function splitIncluded(out) {
+  const m = out.match(/^HTTP\/\S+\s+(\d{3})[^\n]*\n([\s\S]*?)(?:\r?\n\r?\n|\r?\n?$)([\s\S]*)$/);
+  if (!m) return { headers: {}, body: out };
+  const headers = {};
+  for (const line of m[2].split(/\r?\n/)) {
+    const i = line.indexOf(':');
+    if (i > 0) headers[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+  }
+  return { status: Number(m[1]), headers, body: m[3].trim() };
+}
+
+function retryDelay(headers, attempt) {
+  const retryAfter = Number(headers['retry-after']);
+  if (retryAfter >= 0 && headers['retry-after'] !== undefined) return retryAfter * 1000 + 100;
+  const reset = Number(headers['x-ratelimit-reset']);
+  if (headers['x-ratelimit-remaining'] === '0' && reset > 0)
+    return Math.max(0, reset * 1000 - Date.now()) + 1000;
+  return RETRY_MIN_MS * 2 ** (attempt - 1);
+}
+
+function call(argv, { input, write = false } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    if (write) paceWrite();
+    try {
+      return execFileSync('gh', argv, {
+        encoding: 'utf8',
+        input,
+        stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+        maxBuffer: 64 * 1024 * 1024,
+      }).trim();
+    } catch (err) {
+      if (err.code === 'ENOENT') throw new GhError('gh CLI not found');
+      const stderr = err.stderr?.toString() ?? '';
+      const { headers } = splitIncluded(err.stdout?.toString() ?? '');
+      const message = (stderr || err.message).trim().split('\n')[0];
+      const limited = RATE_LIMITED.test(stderr) || headers['x-ratelimit-remaining'] === '0';
+      if (!limited) throw new GhError(message);
+      if (attempt > RETRIES)
+        throw new RateLimited(`GitHub kept rate-limiting after ${RETRIES} retries (${message})`);
+      const wait = retryDelay(headers, attempt);
+      console.log(
+        `  … rate limited (${message}); waiting ${seconds(wait)} before retry ${attempt}/${RETRIES}`,
+      );
+      sleep(wait);
+    } finally {
+      if (write) recordWrite();
+    }
+  }
+}
+
+const read = (argv) => call(argv);
+const readLines = (argv) => read(argv).split('\n').filter(Boolean);
+const readList = (path, jq) => readLines(['api', '--paginate', path, '--jq', jq]);
+
+/** REST write; returns the parsed response body. */
+function write(method, path, body) {
+  const out = call(['api', '--include', '-X', method, path, '--input', '-'], {
+    input: JSON.stringify(body),
+    write: true,
+  });
+  const text = splitIncluded(out).body;
+  return text ? JSON.parse(text) : null;
+}
+const writeGh = (argv) => call(argv, { write: true });
+
+/** GhError → { ok: false, error }. Rate-limit give-ups propagate and stop the run. */
+function attempt(fn) {
+  try {
+    return { ok: true, value: fn() };
+  } catch (err) {
+    if (err instanceof GhError) return { ok: false, error: err.message };
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Reading what already exists
 
 function readGitHub(opts, issueTypesNeeded) {
   const repo =
-    opts.repo ?? gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']);
+    opts.repo ?? read(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']);
   const owner = repo.split('/')[0];
   const state = {
     repo,
     owner,
-    issues: new Map(), // backlog ID → { number, id, url }
+    issues: new Map(), // backlog ID → { number, id, title, body, url }
     milestones: new Map(), // M1 → milestone number
     labels: new Set(),
     issueTypes: null, // Set of available type names, or null when skipped
+    depsSupported: true,
     project: null,
     skipped: [],
   };
 
-  for (const it of jsonLines([
-    'api',
-    '--paginate',
+  for (const line of readList(
     `repos/${repo}/issues?state=all&per_page=100`,
-    '--jq',
-    '.[] | select(.pull_request == null) | {number, id, title, url: .html_url} | tojson',
-  ])) {
+    '.[] | select(.pull_request == null) | {number, id, title, body, url: .html_url} | tojson',
+  )) {
+    const it = JSON.parse(line);
     const id = it.title.match(/^\[([^\]]+)\]/)?.[1];
     if (id && !state.issues.has(id)) state.issues.set(id, it);
   }
-  const milestones = jsonLines([
-    'api',
-    '--paginate',
+  const milestones = readList(
     `repos/${repo}/milestones?state=all&per_page=100`,
-    '--jq',
     '.[] | {number, title} | tojson',
-  ]);
+  ).map((l) => JSON.parse(l));
   for (const [id, def] of Object.entries(MILESTONES)) {
     const found =
       milestones.find((m) => m.title === def.title) ??
       milestones.find((m) => new RegExp(`^${id}\\b`).test(m.title));
     if (found) state.milestones.set(id, found.number);
   }
-  gh(['api', '--paginate', `repos/${repo}/labels?per_page=100`, '--jq', '.[].name'])
-    .split('\n')
-    .filter(Boolean)
-    .forEach((l) => state.labels.add(l));
+  readList(`repos/${repo}/labels?per_page=100`, '.[].name').forEach((l) => state.labels.add(l));
 
   // Issue types exist only for organization-owned repos.
-  const ownerType = gh(['api', `repos/${repo}`, '--jq', '.owner.type']);
+  const ownerType = read(['api', `repos/${repo}`, '--jq', '.owner.type']);
   if (ownerType !== 'Organization') {
     state.skipped.push(
       `Issue types: ${owner} is a ${ownerType.toLowerCase()} account; GitHub issue types are only available to organizations (the type: labels still work)`,
     );
   } else {
-    const res = tryGh(['api', `orgs/${owner}/issue-types`, '--jq', '.[].name']);
+    const res = attempt(() => readLines(['api', `orgs/${owner}/issue-types`, '--jq', '.[].name']));
     if (!res.ok) {
       state.skipped.push(`Issue types: could not read ${owner}'s issue types (${res.error})`);
     } else {
-      state.issueTypes = new Set(res.out.split('\n').filter(Boolean));
+      state.issueTypes = new Set(res.value);
       const missing = issueTypesNeeded.filter((t) => !state.issueTypes.has(t));
       if (missing.length)
         state.skipped.push(
@@ -357,7 +473,9 @@ function readGitHub(opts, issueTypesNeeded) {
 const PROJECT_FIELDS = ['Status', 'Priority', 'Size', 'Area'];
 
 function readProject(number, owner, skipped) {
-  const view = tryGh(['project', 'view', number, '--owner', owner, '--format', 'json']);
+  const view = attempt(() =>
+    read(['project', 'view', number, '--owner', owner, '--format', 'json']),
+  );
   if (!view.ok) {
     skipped.push(
       `Project #${number}: could not open it for ${owner} (${view.error}). It needs the "project" scope: gh auth refresh -s project`,
@@ -365,17 +483,17 @@ function readProject(number, owner, skipped) {
     return null;
   }
   const fields = JSON.parse(
-    gh(['project', 'field-list', number, '--owner', owner, '--format', 'json', '--limit', '100']),
+    read(['project', 'field-list', number, '--owner', owner, '--format', 'json', '--limit', '100']),
   ).fields;
   const items = JSON.parse(
-    gh(['project', 'item-list', number, '--owner', owner, '--format', 'json', '--limit', '5000']),
+    read(['project', 'item-list', number, '--owner', owner, '--format', 'json', '--limit', '5000']),
   ).items;
   const project = {
     number,
-    id: JSON.parse(view.out).id,
-    title: JSON.parse(view.out).title,
+    id: JSON.parse(view.value).id,
+    title: JSON.parse(view.value).title,
     fields: new Map(),
-    items: new Set(items.map((it) => it.content?.url).filter(Boolean)),
+    items: new Map(items.filter((it) => it.content?.url).map((it) => [it.content.url, it])),
   };
   for (const name of PROJECT_FIELDS) {
     const field = fields.find((f) => f.name.toLowerCase() === name.toLowerCase());
@@ -400,6 +518,139 @@ function projectValues(issue) {
   };
 }
 
+/** gh item-list puts field values on the item under the field's name, in varying case. */
+function itemValue(item, name) {
+  const key = Object.keys(item).find((k) => k.toLowerCase() === name.toLowerCase());
+  const value = key === undefined ? undefined : item[key];
+  return value === null || value === undefined || value === '' ? null : value;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Planning: which issues, links and Project changes this run needs. Used by the dry run and by
+// --apply, so the dry run shows exactly what a run would repair.
+
+function plan(issues, selection, state) {
+  const byId = new Map(issues.map((i) => [i.id, i]));
+  const selected = issues.filter((i) => !selection || selection.has(i.milestone));
+  const selectedIds = new Set(selected.map((i) => i.id));
+  const onGitHub = (id) => Boolean(state?.issues.has(id));
+  const willExist = (id) => onGitHub(id) || selectedIds.has(id);
+  const later = [];
+  const missingNote = (id) => `waits for [${id}] (${byId.get(id).milestone}, not imported yet)`;
+
+  // A link is handled when either end is selected, so importing the later milestone links back.
+  const parentLinks = [];
+  const blockLinks = [];
+  for (const issue of issues) {
+    if (issue.parent && byId.has(issue.parent)) {
+      const ends = [issue.id, issue.parent];
+      if (ends.some((id) => selectedIds.has(id))) {
+        const absent = ends.find((id) => !willExist(id));
+        if (absent) later.push(`[${issue.id}] → parent [${issue.parent}]: ${missingNote(absent)}`);
+        else parentLinks.push({ child: issue.id, parent: issue.parent, present: false });
+      }
+    }
+    for (const ref of issue.blockedBy) {
+      if (/^#\d+$/.test(ref)) {
+        if (selectedIds.has(issue.id))
+          blockLinks.push({ blocked: issue.id, blocker: ref, present: false });
+        continue;
+      }
+      if (!byId.has(ref) || ![issue.id, ref].some((id) => selectedIds.has(id))) continue;
+      const absent = [issue.id, ref].find((id) => !willExist(id));
+      if (absent) later.push(`[${issue.id}] blocked by [${ref}]: ${missingNote(absent)}`);
+      else blockLinks.push({ blocked: issue.id, blocker: ref, present: false });
+    }
+  }
+
+  // Links between issues that both exist may already be there: read them (reads are cheap).
+  if (state) {
+    const num = (ref) =>
+      ref.startsWith('#') ? Number(ref.slice(1)) : state.issues.get(ref)?.number;
+    const children = new Map();
+    const blockers = new Map();
+    const toCheck =
+      parentLinks.filter((l) => onGitHub(l.child) && onGitHub(l.parent)).length +
+      blockLinks.filter((l) => onGitHub(l.blocked)).length;
+    if (toCheck) console.log(`(checking ${toCheck} links between existing issues…)`);
+    for (const link of parentLinks) {
+      if (!onGitHub(link.child) || !onGitHub(link.parent)) continue;
+      const parent = num(link.parent);
+      if (!children.has(parent))
+        children.set(
+          parent,
+          new Set(
+            readList(
+              `repos/${state.repo}/issues/${parent}/sub_issues?per_page=100`,
+              '.[].number',
+            ).map(Number),
+          ),
+        );
+      link.present = children.get(parent).has(num(link.child));
+    }
+    for (const link of blockLinks) {
+      if (!onGitHub(link.blocked) || num(link.blocker) === undefined) continue;
+      const blocked = num(link.blocked);
+      if (state.depsSupported && !blockers.has(blocked)) {
+        const res = attempt(() =>
+          readList(
+            `repos/${state.repo}/issues/${blocked}/dependencies/blocked_by?per_page=100`,
+            '.[].number',
+          ),
+        );
+        if (!res.ok && !NOT_SUPPORTED.test(res.error)) throw new GhError(res.error);
+        if (res.ok) blockers.set(blocked, new Set(res.value.map(Number)));
+        else state.depsSupported = false;
+      }
+      // Without the dependencies API, an earlier run wrote "Blocked by #n" into the body.
+      link.present = state.depsSupported
+        ? blockers.get(blocked).has(num(link.blocker))
+        : new RegExp(`^Blocked by #${num(link.blocker)}\\s*$`, 'm').test(
+            state.issues.get(link.blocked).body ?? '',
+          );
+    }
+  }
+
+  // Project: add missing items, fill empty fields. Without a readable project, assume all.
+  const project = state?.project;
+  let projectAdds = 0;
+  let fieldSets = 0;
+  for (const issue of selected) {
+    const values = projectValues(issue);
+    const item = project && project.items.get(state.issues.get(issue.id)?.url);
+    if (!item) projectAdds++;
+    for (const name of PROJECT_FIELDS) {
+      if (!values[name]) continue;
+      if (
+        project &&
+        (!project.fields.has(name) || !optionFor(project.fields.get(name), values[name]))
+      )
+        continue;
+      if (!item || !itemValue(item, name)) fieldSets++;
+    }
+  }
+
+  return { selected, selectedIds, parentLinks, blockLinks, later, projectAdds, fieldSets };
+}
+
+function optionFor(field, value) {
+  if (!field.options) return { text: value };
+  return field.options.find((o) => o.name.toLowerCase() === String(value).toLowerCase()) ?? null;
+}
+
+/**
+ * Rough wall time for n writes: each write takes about WRITE_DELAY_MS + GH_CALL_MS, and after each
+ * HOURLY_WRITES batch the next one starts when the rolling hour frees up (counted as a full hour).
+ */
+function estimateDuration(writes) {
+  const perWrite = WRITE_DELAY_MS + GH_CALL_MS;
+  const firstBatch = Math.max(0, HOURLY_WRITES - writesInWindow());
+  if (writes <= firstBatch) return writes * perWrite;
+  const pauses = Math.ceil((writes - firstBatch) / HOURLY_WRITES);
+  const lastBatch = writes - firstBatch - (pauses - 1) * HOURLY_WRITES;
+  return pauses * WINDOW_MS + lastBatch * perWrite;
+}
+
 // ---------------------------------------------------------------------------------------------
 
 function parseArgs(argv) {
@@ -409,6 +660,7 @@ function parseArgs(argv) {
     if (a === '--apply') opts.apply = true;
     else if (a === '--repo') opts.repo = argv[++i];
     else if (a === '--project') opts.project = argv[++i];
+    else if (a === '--milestone') opts.milestone = argv[++i];
     else if (a.startsWith('--')) usage(`unknown option ${a}`);
     else opts.file = a;
   }
@@ -416,12 +668,24 @@ function parseArgs(argv) {
     usage('--repo needs owner/name');
   if ('project' in opts && !/^\d+$/.test(opts.project ?? ''))
     usage('--project needs a project number (the N in github.com/users/<you>/projects/N)');
+  if ('milestone' in opts) {
+    const ids = (opts.milestone ?? '')
+      .split(',')
+      .map((m) => m.trim().toUpperCase())
+      .filter(Boolean);
+    const unknown = ids.filter((m) => !MILESTONES[m]);
+    if (!ids.length || unknown.length)
+      usage(
+        `--milestone needs a comma list of ${Object.keys(MILESTONES).join(', ')}${unknown.length ? ` (unknown: ${unknown.join(', ')})` : ''}`,
+      );
+    opts.selection = new Set(ids);
+  }
   return opts;
 }
 
 function usage(message) {
   console.error(
-    `${message}\nUsage: node backlog-to-issues.mjs [backlog.md] [--apply] [--repo owner/name] [--project <number>]`,
+    `${message}\nUsage: node backlog-to-issues.mjs [backlog.md] [--apply] [--milestone M0,M1] [--repo owner/name] [--project <number>]`,
   );
   process.exit(2);
 }
@@ -446,25 +710,25 @@ function printTree(issues, describe) {
   roots.forEach((r) => walk(r, 0));
 }
 
+const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const backlog = parseBacklog(readFileSync(opts.file, 'utf8'));
-  const { issues, warnings } = backlog;
+  const { issues, warnings } = parseBacklog(readFileSync(opts.file, 'utf8'));
   const typesNeeded = [...new Set(issues.map((i) => TYPES[i.type]?.issueType).filter(Boolean))];
 
   let state = null;
   let offline = '';
-  if (!tryGh(['--version']).ok) {
+  if (!attempt(() => read(['--version'])).ok) {
     offline = 'gh CLI not found';
   } else {
     try {
       state = readGitHub(opts, typesNeeded);
     } catch (err) {
-      offline = `could not read the GitHub repo (${(err.stderr?.toString() || err.message).trim().split('\n')[0]})`;
+      offline = `could not read the GitHub repo (${err.message.trim().split('\n')[0]})`;
     }
   }
   const existing = state?.issues ?? new Map();
-  const isNew = (i) => !existing.has(i.id);
 
   console.log(
     `${opts.apply ? 'APPLY' : 'DRY RUN'}: ${opts.file} → ${state ? state.repo : `(no repo: ${offline}; assuming nothing exists on GitHub yet)`}\n`,
@@ -474,6 +738,8 @@ function main() {
     warnings.forEach((w) => console.log(`  ! ${w}`));
     console.log('');
   }
+  const p = plan(issues, opts.selection, state);
+  const { selected } = p;
 
   const labelNames = Object.keys(LABELS);
   const newLabels = labelNames.filter((l) => !state?.labels.has(l));
@@ -481,6 +747,7 @@ function main() {
     `Labels (${labelNames.length}): ${newLabels.length} to create, ${labelNames.length - newLabels.length} exist`,
   );
   console.log(`  ${labelNames.map((l) => `${newLabels.includes(l) ? '+' : '='}${l}`).join('  ')}`);
+  const newMilestones = Object.keys(MILESTONES).filter((id) => !state?.milestones.has(id));
   console.log(`Milestones (${Object.keys(MILESTONES).length}):`);
   for (const [id, def] of Object.entries(MILESTONES)) {
     const number = state?.milestones.get(id);
@@ -489,14 +756,17 @@ function main() {
     );
   }
 
-  const counts = Object.keys(TYPES)
-    .map((t) => `${issues.filter((i) => i.type === t).length} ${t}`)
+  const types = Object.keys(TYPES)
+    .map((t) => `${selected.filter((i) => i.type === t).length} ${t}`)
     .join(', ');
-  const toCreate = issues.filter(isNew);
+  const toCreate = selected.filter((i) => !existing.has(i.id));
+  const scope = opts.selection
+    ? `${selected.length} of ${issues.length} in ${[...opts.selection].join(', ')}`
+    : `${issues.length}`;
   console.log(
-    `Issues (${issues.length}: ${counts}): ${toCreate.length} to create, ${issues.length - toCreate.length} exist`,
+    `Issues (${scope}: ${types}): ${toCreate.length} to create, ${selected.length - toCreate.length} exist`,
   );
-  printTree(issues, (i, depth) => {
+  printTree(selected, (i, depth) => {
     const mark = existing.has(i.id) ? `= #${existing.get(i.id).number}` : '+';
     const indent = '  '.repeat(depth);
     const details = [
@@ -510,11 +780,21 @@ function main() {
     return `  ${mark.padEnd(6)} ${indent}[${i.id}] ${i.title}\n         ${indent}${details.join(' · ')}`;
   });
 
-  const subIssueLinks = toCreate.filter((i) => i.parent).length;
-  const blockerLinks = toCreate.reduce((n, i) => n + i.blockedBy.length, 0);
+  const missingParents = p.parentLinks.filter((l) => !l.present).length;
+  const missingBlocks = p.blockLinks.filter((l) => !l.present);
   console.log(
-    `Links for new issues: ${subIssueLinks} sub-issue (Parent), ${blockerLinks} blocked-by (added after all issues exist)`,
+    `Sub-issue links: ${missingParents} to add, ${p.parentLinks.length - missingParents} already linked`,
   );
+  console.log(
+    `Blocked-by links: ${missingBlocks.length} to add, ${p.blockLinks.length - missingBlocks.length} already linked${state && !state.depsSupported ? ` (no dependencies API: ${missingBlocks.filter((l) => !existing.has(l.blocked)).length} go into new issues as "Blocked by #n" lines, ${missingBlocks.filter((l) => existing.has(l.blocked)).length} on existing issues can't be added because their bodies are never edited)` : ''}`,
+  );
+  if (p.later.length) {
+    console.log(
+      `Not linked yet (${p.later.length}): the other side is outside --milestone; a later import links it`,
+    );
+    p.later.forEach((l) => console.log(`  ~ ${l}`));
+  }
+
   console.log('Extras:');
   if (state) {
     if (state.issueTypes)
@@ -523,20 +803,35 @@ function main() {
       );
     if (state.project)
       console.log(
-        `  - Project #${state.project.number} "${state.project.title}": will add ${issues.filter((i) => !existing.get(i.id) || !state.project.items.has(existing.get(i.id).url)).length} issues and set ${[...state.project.fields.keys()].join(', ') || 'no fields'}`,
+        `  - Project #${state.project.number} "${state.project.title}": ${count(p.projectAdds, 'item')} to add, ${count(p.fieldSets, 'empty field')} to set (${[...state.project.fields.keys()].join(', ') || 'no fields'})`,
       );
-    else if (!opts.project) console.log('  - Project: not requested (pass --project <number>)');
     state.skipped.forEach((s) => console.log(`  - skipped: ${s}`));
   } else {
     console.log(`  - Issue types and Project fields: not checked (${offline})`);
   }
+  if (!opts.project)
+    console.log(
+      '  - Project: not requested. Recommended: turn on the Project\'s "Auto-add to project" and "Item added → Backlog" workflows instead (SKILL.md)',
+    );
+
+  const blockWrites =
+    state && !state.depsSupported
+      ? new Set(missingBlocks.filter((l) => !existing.has(l.blocked)).map((l) => l.blocked)).size
+      : missingBlocks.length;
+  const baseWrites =
+    newLabels.length + newMilestones.length + toCreate.length + missingParents + blockWrites;
+  const projectWrites = p.projectAdds + p.fieldSets;
+  const used = writesInWindow();
   console.log(
-    '  - Blocked by: GitHub issue dependencies API; if the repo lacks it, a "Blocked by #n" line is appended to the new issue instead',
+    `Writes (estimate): ${baseWrites} without --project (${formatDuration(estimateDuration(baseWrites))}) · ${baseWrites + projectWrites} with --project (${formatDuration(estimateDuration(baseWrites + projectWrites))})${state?.project || !opts.project ? '' : ', Project not readable so assuming every item and field'}`,
+  );
+  console.log(
+    `  paced ≥ ${seconds(WRITE_DELAY_MS)} apart, pausing at ${HOURLY_WRITES} writes per rolling hour (${used} used in the last hour by earlier runs of this script; web UI actions also count against GitHub's 500/hour)`,
   );
 
   if (!opts.apply) {
     console.log(
-      `\nNothing was created.${warnings.length ? ' Fix the warnings, then' : ''} Re-run with --apply to create the items marked "+".`,
+      `\nNothing was created.${warnings.length ? ' Fix the warnings, then' : ''} Re-run with --apply to create the items marked "+" and add the missing links.`,
     );
     return;
   }
@@ -546,205 +841,243 @@ function main() {
   }
   if (!state) {
     console.error(
-      `\n${offline}. Install gh (brew install gh), run gh auth login, and push the repo to GitHub first.`,
+      `\n${offline}. Install gh from https://cli.github.com, run gh auth login, and push the repo to GitHub first.`,
     );
     process.exit(1);
   }
-  apply(issues, state);
+  apply(p, state);
 }
 
-function apply(issues, state) {
+function apply(p, state) {
   const { repo } = state;
-  const problems = [];
   const numbers = new Map(state.issues); // ID → { number, id, url }
   const created = new Map(); // ID → { number, id, url, body }
+  const done = { issues: 0, parents: 0, blocks: 0, items: 0, fields: 0 };
+  const problems = [];
+  let stopped = null;
   let typesOn = Boolean(state.issueTypes);
 
   console.log('');
-  for (const name of Object.keys(LABELS)) {
-    if (state.labels.has(name)) continue;
-    const [color, description] = LABELS[name];
-    gh(['label', 'create', name, '--repo', repo, '--color', color, '--description', description]);
-    console.log(`label   + ${name}`);
-  }
-  for (const [id, def] of Object.entries(MILESTONES)) {
-    if (state.milestones.has(id)) continue;
-    const res = api('POST', `repos/${repo}/milestones`, def);
-    if (!res.ok) throw new Error(`creating milestone ${def.title}: ${res.error}`);
-    state.milestones.set(id, res.data.number);
-    console.log(`milestone + ${def.title}`);
-  }
-
-  // Pass 1: create the issues. On a failure, still link what was created, then stop.
-  let fatal = null;
-  for (const issue of issues) {
-    if (numbers.has(issue.id)) continue;
-    const payload = {
-      title: `[${issue.id}] ${issue.title}`,
-      body: issue.body,
-      labels: issue.labels,
-      milestone: state.milestones.get(issue.milestone),
-    };
-    const issueType = TYPES[issue.type].issueType;
-    if (typesOn && state.issueTypes.has(issueType)) payload.type = issueType;
-    let res = api('POST', `repos/${repo}/issues`, payload);
-    if (!res.ok && payload.type) {
-      typesOn = false;
-      state.skipped.push(
-        `Issue types: GitHub rejected type "${payload.type}" (${res.error}); created the rest without types`,
-      );
-      delete payload.type;
-      res = api('POST', `repos/${repo}/issues`, payload);
+  try {
+    for (const name of Object.keys(LABELS)) {
+      if (state.labels.has(name)) continue;
+      const [color, description] = LABELS[name];
+      write('POST', `repos/${repo}/labels`, { name, color, description });
+      console.log(`label   + ${name}`);
     }
-    if (!res.ok) {
-      fatal = `creating [${issue.id}]: ${res.error}`;
-      break;
+    for (const [id, def] of Object.entries(MILESTONES)) {
+      if (state.milestones.has(id)) continue;
+      state.milestones.set(id, write('POST', `repos/${repo}/milestones`, def).number);
+      console.log(`milestone + ${def.title}`);
     }
-    const entry = {
-      number: res.data.number,
-      id: res.data.id,
-      url: res.data.html_url,
-      body: issue.body,
-    };
-    numbers.set(issue.id, entry);
-    created.set(issue.id, entry);
-    console.log(
-      `issue   + #${entry.number} ${payload.title}${payload.type ? ` (${payload.type})` : ''}`,
-    );
-  }
 
-  // Pass 2: sub-issue links, only for issues created in this run (existing ones were linked when
-  // they were created).
-  for (const issue of issues) {
-    const child = created.get(issue.id);
-    if (!child || !issue.parent) continue;
-    const parent = numbers.get(issue.parent);
-    const res = api('POST', `repos/${repo}/issues/${parent.number}/sub_issues`, {
-      sub_issue_id: child.id,
-    });
-    if (res.ok) console.log(`sub-issue  #${child.number} → parent #${parent.number}`);
-    else
-      problems.push(
-        `sub-issue #${child.number} → #${parent.number} failed (${res.error}); add it in the GitHub UI`,
+    // 1. Issues, in file order.
+    for (const issue of p.selected) {
+      if (numbers.has(issue.id)) continue;
+      const payload = {
+        title: `[${issue.id}] ${issue.title}`,
+        body: issue.body,
+        labels: issue.labels,
+        milestone: state.milestones.get(issue.milestone),
+      };
+      const issueType = TYPES[issue.type].issueType;
+      if (typesOn && state.issueTypes.has(issueType)) payload.type = issueType;
+      let res = attempt(() => write('POST', `repos/${repo}/issues`, payload));
+      if (!res.ok && payload.type) {
+        typesOn = false;
+        state.skipped.push(
+          `Issue types: GitHub rejected type "${payload.type}" (${res.error}); created the rest without types`,
+        );
+        delete payload.type;
+        res = attempt(() => write('POST', `repos/${repo}/issues`, payload));
+      }
+      if (!res.ok) throw new GhError(`creating [${issue.id}] failed (${res.error})`);
+      const entry = {
+        number: res.value.number,
+        id: res.value.id,
+        url: res.value.html_url,
+        body: issue.body,
+      };
+      numbers.set(issue.id, entry);
+      created.set(issue.id, entry);
+      done.issues++;
+      console.log(
+        `issue   + #${entry.number} ${payload.title}${payload.type ? ` (${payload.type})` : ''}`,
       );
-  }
+    }
 
-  // Pass 3: blocked-by, after all issues exist so forward references resolve.
-  let depsSupported = true;
-  for (const issue of issues) {
-    const blocked = created.get(issue.id);
-    if (!blocked || !issue.blockedBy.length) continue;
-    const fallback = [];
-    for (const ref of issue.blockedBy) {
-      let blocker = numbers.get(ref);
-      if (!blocker && /^#\d+$/.test(ref)) {
-        const res = tryGh([
-          'api',
-          `repos/${repo}/issues/${ref.slice(1)}`,
-          '--jq',
-          '{number, id} | tojson',
-        ]);
-        blocker = res.ok ? JSON.parse(res.out) : null;
+    // 2. Sub-issue links that are missing (new issues, or gaps left by an earlier run).
+    for (const link of p.parentLinks) {
+      if (link.present) continue;
+      const child = numbers.get(link.child);
+      const parent = numbers.get(link.parent);
+      const res = attempt(() =>
+        write('POST', `repos/${repo}/issues/${parent.number}/sub_issues`, {
+          sub_issue_id: child.id,
+        }),
+      );
+      if (res.ok) {
+        done.parents++;
+        console.log(`sub-issue  #${child.number} → parent #${parent.number}`);
+      } else
+        problems.push(
+          `sub-issue #${child.number} → #${parent.number} failed (${res.error}); add it in the GitHub UI`,
+        );
+    }
+
+    // 3. Blocked-by links, after all issues exist so forward references resolve.
+    const fallback = new Map(); // new issue ID → ["Blocked by #n"]
+    let skippedExisting = 0;
+    for (const link of p.blockLinks) {
+      if (link.present) continue;
+      const blocked = numbers.get(link.blocked);
+      let blocker = numbers.get(link.blocker);
+      if (!blocker && link.blocker.startsWith('#')) {
+        const res = attempt(() =>
+          read([
+            'api',
+            `repos/${repo}/issues/${link.blocker.slice(1)}`,
+            '--jq',
+            '{number, id} | tojson',
+          ]),
+        );
+        blocker = res.ok ? JSON.parse(res.value) : null;
       }
       if (!blocker) {
-        problems.push(`#${blocked.number} blocked by ${ref}: not found on GitHub`);
+        problems.push(`#${blocked.number} blocked by ${link.blocker}: not found on GitHub`);
         continue;
       }
-      if (depsSupported) {
-        const res = api('POST', `repos/${repo}/issues/${blocked.number}/dependencies/blocked_by`, {
-          issue_id: blocker.id,
-        });
+      if (state.depsSupported) {
+        const res = attempt(() =>
+          write('POST', `repos/${repo}/issues/${blocked.number}/dependencies/blocked_by`, {
+            issue_id: blocker.id,
+          }),
+        );
         if (res.ok) {
+          done.blocks++;
           console.log(`blocked-by #${blocked.number} ← #${blocker.number}`);
           continue;
         }
-        if (!notSupported(res.error)) {
+        if (!NOT_SUPPORTED.test(res.error)) {
           problems.push(`#${blocked.number} blocked by #${blocker.number} failed (${res.error})`);
           continue;
         }
-        depsSupported = false;
+        state.depsSupported = false;
         state.skipped.push(
           `Issue dependencies API not available (${res.error}); wrote "Blocked by #n" lines into the new issues instead`,
         );
       }
-      fallback.push(`Blocked by #${blocker.number}`);
-    }
-    if (fallback.length) {
-      // Editing is fine here: this issue was created a moment ago by this run.
-      const res = api('PATCH', `repos/${repo}/issues/${blocked.number}`, {
-        body: `${blocked.body}\n\n${fallback.join('\n')}`,
-      });
-      if (res.ok) console.log(`blocked-by #${blocked.number}: ${fallback.join(', ')} (in body)`);
-      else
-        problems.push(`#${blocked.number}: could not add "${fallback.join(', ')}" (${res.error})`);
-    }
-  }
-
-  // Pass 4: GitHub Project items. Adds issues that aren't in the project yet and sets their fields
-  // once; items already in the project are left alone so manual changes (Status…) survive.
-  const project = state.project;
-  if (project) {
-    const optionMisses = new Set();
-    for (const issue of issues) {
-      const entry = numbers.get(issue.id);
-      if (!entry || project.items.has(entry.url)) continue;
-      const add = tryGh([
-        'project',
-        'item-add',
-        project.number,
-        '--owner',
-        state.owner,
-        '--url',
-        entry.url,
-        '--format',
-        'json',
-      ]);
-      if (!add.ok) {
-        problems.push(`project: adding #${entry.number} failed (${add.error})`);
+      if (!created.has(link.blocked)) {
+        skippedExisting++;
         continue;
       }
-      const itemId = JSON.parse(add.out).id;
-      const values = projectValues(issue);
-      for (const [name, field] of project.fields) {
-        const value = values[name];
-        if (!value) continue;
-        const argv = [
-          'project',
-          'item-edit',
-          '--id',
-          itemId,
-          '--project-id',
-          project.id,
-          '--field-id',
-          field.id,
-        ];
-        if (field.options) {
-          const option = field.options.find((o) => o.name.toLowerCase() === value.toLowerCase());
+      if (!fallback.has(link.blocked)) fallback.set(link.blocked, []);
+      fallback.get(link.blocked).push(`Blocked by #${blocker.number}`);
+    }
+    if (skippedExisting)
+      state.skipped.push(
+        `${count(skippedExisting, 'blocked-by link')} for issues from earlier runs: no dependencies API, and existing issue bodies are never edited`,
+      );
+    for (const [id, lines] of fallback) {
+      const blocked = created.get(id);
+      // Editing is fine here: this issue was created a moment ago by this run.
+      const res = attempt(() =>
+        write('PATCH', `repos/${repo}/issues/${blocked.number}`, {
+          body: `${blocked.body}\n\n${lines.join('\n')}`,
+        }),
+      );
+      if (res.ok) {
+        done.blocks += lines.length;
+        console.log(`blocked-by #${blocked.number}: ${lines.join(', ')} (in body)`);
+      } else
+        problems.push(`#${blocked.number}: could not add "${lines.join(', ')}" (${res.error})`);
+    }
+
+    // 4. Project: add missing items and fill empty fields. Fields that already have a value are
+    // never changed, so moves on the board survive a re-run.
+    const project = state.project;
+    if (project) {
+      const optionMisses = new Set();
+      for (const issue of p.selected) {
+        const entry = numbers.get(issue.id);
+        let item = project.items.get(entry.url);
+        if (!item) {
+          const add = attempt(() =>
+            writeGh([
+              'project',
+              'item-add',
+              project.number,
+              '--owner',
+              state.owner,
+              '--url',
+              entry.url,
+              '--format',
+              'json',
+            ]),
+          );
+          if (!add.ok) {
+            problems.push(`project: adding #${entry.number} failed (${add.error})`);
+            continue;
+          }
+          item = { id: JSON.parse(add.value).id };
+          project.items.set(entry.url, item);
+          done.items++;
+          console.log(`project + #${entry.number}`);
+        }
+        const values = projectValues(issue);
+        for (const [name, field] of project.fields) {
+          const value = values[name];
+          if (!value || itemValue(item, name)) continue;
+          const option = optionFor(field, value);
           if (!option) {
             optionMisses.add(`Project field ${name}: no option "${value}"`);
             continue;
           }
-          argv.push('--single-select-option-id', option.id);
-        } else argv.push('--text', value);
-        const res = tryGh(argv);
-        if (!res.ok)
-          problems.push(`project: setting ${name} on #${entry.number} failed (${res.error})`);
+          const argv = [
+            'project',
+            'item-edit',
+            '--id',
+            item.id,
+            '--project-id',
+            project.id,
+            '--field-id',
+            field.id,
+          ];
+          if (option.text) argv.push('--text', option.text);
+          else argv.push('--single-select-option-id', option.id);
+          const res = attempt(() => writeGh(argv));
+          if (res.ok) {
+            done.fields++;
+            item[name] = value;
+          } else
+            problems.push(`project: setting ${name} on #${entry.number} failed (${res.error})`);
+        }
       }
-      console.log(`project + #${entry.number}`);
+      optionMisses.forEach((s) => state.skipped.push(s));
     }
-    optionMisses.forEach((s) => state.skipped.push(s));
+  } catch (err) {
+    if (!(err instanceof GhError || err instanceof RateLimited)) throw err;
+    stopped = err.message;
   }
 
-  console.log(`\nCreated ${created.size} issues.`);
+  console.log(
+    `\n${stopped ? 'Stopped early' : 'Done'}: ${count(done.issues, 'issue')} created, ${count(done.parents, 'sub-issue link')} and ${count(done.blocks, 'blocked-by link')} added${state.project ? `, ${count(done.items, 'Project item')} added, ${count(done.fields, 'Project field')} set` : ''}.`,
+  );
+  if (p.later.length)
+    console.log(
+      `Not linked yet: ${p.later.length} links wait for a milestone that isn't imported (listed above).`,
+    );
   if (state.skipped.length) {
     console.log('Skipped:');
     state.skipped.forEach((s) => console.log(`  - ${s}`));
   }
-  if (problems.length || fatal) {
-    console.error('Problems:');
-    problems.forEach((p) => console.error(`  ! ${p}`));
-    if (fatal)
-      console.error(`  ! stopped while ${fatal}. Re-run to continue; created issues are skipped.`);
+  if (problems.length || stopped) {
+    if (problems.length) console.error('Problems:');
+    problems.forEach((pr) => console.error(`  ! ${pr}`));
+    if (stopped)
+      console.error(
+        `Stopped: ${stopped}.\nRe-run the same command to resume: existing issues are skipped, and missing links, Project items and fields are added.`,
+      );
     process.exit(1);
   }
 }
