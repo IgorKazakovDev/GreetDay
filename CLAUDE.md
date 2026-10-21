@@ -95,8 +95,11 @@ pnpm nx graph                                 # project graph
 - Agents in `.claude/agents/`: `business-analyst`, `product-designer`, `mobile-developer`,
   `backend-developer`, `code-reviewer`, `test-writer`, `mentor`. Stay in your lane and hand off.
 - Skills in `.claude/skills/`: `verify`, `api-endpoint`, `db-migration`, `mobile-screen`,
-  `sync-design-tokens`, `backlog-to-issues`, `adr`, `explain`, plus Nx's `nx-workspace`,
+  `sync-design-tokens`, `backlog-to-issues`, `work-on`, `adr`, `explain`, plus Nx's `nx-workspace`,
   `nx-generate`, `nx-run-tasks`, `nx-plugins`, `link-workspace-packages`.
+- The main session is the orchestrator; `/work-on` is its playbook for taking a story from the GitHub
+  Project board to a PR (one branch and PR per story, one commit per task, cards moved as it goes).
+  Repo and Project ids live in `.claude/github.json`.
 - MCP servers in `.mcp.json`: `nx`, `github`, `penpot`, `postgres` (read-only role, local dev DB only).
 
 ## Working with Nx (merged from `nx configure-ai-agents`)

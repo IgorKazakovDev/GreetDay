@@ -71,7 +71,19 @@ overrides go in `.claude/settings.local.json` (git-ignored).
 | `/adr <title>`                 | records a decision in `docs/decisions/`                                                  |
 | `/sync-design-tokens`          | Penpot tokens JSON → typed RN theme (you run it)                                         |
 | `/backlog-to-issues [--apply]` | backlog → GitHub labels, milestones, issues, sub-issues (dry run by default; you run it) |
+| `/work-on [E3-S2 \| #n]`       | next Ready story → branch → tasks delegated to agents → review → PR (you run it)         |
 | `/explain <topic or file>`     | mentor-style explanation (you run it)                                                    |
+
+**Board flow with `/work-on`:** fill in [`.claude/github.json`](.claude/github.json) (owner, repo,
+Project number) once the repo and Project exist. The main Claude session is the orchestrator and
+follows [the playbook](.claude/skills/work-on/SKILL.md): one branch and one PR per story, one commit
+per task, asking before every commit, push, comment, close and PR. Who moves which card:
+
+- **You:** Backlog → Ready (pick what's next), then review and merge the PR.
+- **`/work-on`:** story and task → In progress, each task → Done after its commit, story → In review
+  when the PR opens; closes epics (and leftover stories) whose sub-issues are all closed, after asking.
+- **GitHub:** closes the story and its tasks on merge (`Closes #n`); the Project's built-in
+  workflows set Done. Keep the "Auto-close issue" workflow **off**: tasks reach Done before the merge.
 
 **Guard rails:** `.claude/settings.json` asks before commits, pushes, `docker compose up/down`,
 migrations and GitHub writes; it denies `.env` access and force pushes. Hooks format edited

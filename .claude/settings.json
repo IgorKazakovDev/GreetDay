@@ -14,6 +14,12 @@
       "Bash(docker compose ps *)",
       "Bash(docker compose logs *)",
       "Bash(node tools/scripts/sync-design-tokens.mjs *)",
+      "Bash(node .claude/skills/work-on/board.mjs next)",
+      "Bash(node .claude/skills/work-on/board.mjs next *)",
+      "Bash(node .claude/skills/work-on/board.mjs show)",
+      "Bash(node .claude/skills/work-on/board.mjs show *)",
+      "Bash(node .claude/skills/work-on/board.mjs status *)",
+      "Bash(node .claude/skills/work-on/board.mjs close-done-parents)",
       "mcp__nx__*"
     ],
     "ask": [
@@ -33,12 +39,14 @@
       "Bash(gh issue edit *)",
       "Bash(gh issue close *)",
       "Bash(gh issue delete *)",
+      "Bash(gh issue comment *)",
       "Bash(gh label *)",
       "Bash(gh api *)",
       "Bash(gh project *)",
       "Bash(gh pr create *)",
       "Bash(gh pr merge *)",
-      "Bash(node .claude/skills/backlog-to-issues/backlog-to-issues.mjs * --apply *)"
+      "Bash(node .claude/skills/backlog-to-issues/backlog-to-issues.mjs * --apply *)",
+      "Bash(node .claude/skills/work-on/board.mjs close-done-parents *)"
     ],
     "deny": [
       "Read(.env)",
