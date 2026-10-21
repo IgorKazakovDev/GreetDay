@@ -22,7 +22,7 @@ is a small complete sample. This file only lists the extra rules `backlog-to-iss
    | `- Type:`       | yes            | `epic`, `story`, `task`, `spike`; must match the ID shape                                  |
    | `- Parent:`     | stories, tasks | story → its epic (`E3`), task → its story (`E3-S2`); spike: optional, an epic or story     |
    | `- Labels:`     | yes            | §8 labels only: one `type:` matching Type, one `priority:`, ≥ 1 `area:` (tasks: exactly 1) |
-   | `- Milestone:`  | yes            | `M1`–`M4`                                                                                  |
+   | `- Milestone:`  | yes            | `M0`–`M5`                                                                                  |
    | `- Size:`       | tasks, spikes  | tasks/spikes `XS`, `S`, `M`; epics/stories `—` or `XS`–`L`                                 |
    | `- Blocked by:` | no             | comma-separated IDs from this file (or `#123` for an existing issue), `—` for none         |
 

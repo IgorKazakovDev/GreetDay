@@ -1,7 +1,7 @@
 # Birthday Tracker — Project Brief for Business Analyst
 
 **Audience:** Business Analyst agent producing the MVP backlog for GitHub Projects
-**Version:** 1.0 · 17 Oct 2026
+**Version:** 1.1 · 20 Oct 2026 (product-owner answers to the first backlog review: §3 D13–D25, §7 M0 Design and M5 Public release, §8 `area:shared`) · 1.0 · 17 Oct 2026
 **Owner / Product owner / Sole developer:** Igor Kazakov
 
 ---
@@ -74,20 +74,33 @@ A mobile app (iOS + Android) that helps people never miss a friend's birthday. T
 
 These are settled. Don't reopen them; reflect them in acceptance criteria.
 
-| #   | Decision                                                                                                                                                                                              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Home screen is the **Upcoming list**; Calendar is a separate tab. Tabs: Upcoming, Calendar, Friends, History, Settings.                                                                               |
-| D2  | A greeting is **saved to history when the user taps the Telegram button**. The app cannot confirm the message was actually sent. "Copy text" alone doesn't save. The user can delete a history entry. |
-| D3  | Reminders: **global settings only**: master toggle, "On the day" toggle, "In advance" (None / 1 day / 3 days / 1 week, default 3 days), notification time (default 09:00, phone's local time zone).   |
-| D4  | Birthday year is optional. No year → no age shown anywhere.                                                                                                                                           |
-| D5  | Feb 29 birthdays are shown and reminded on **Feb 28** in non-leap years.                                                                                                                              |
-| D6  | "Greeted" = a greeting saved for this friend from **7 days before** this year's birthday onward.                                                                                                      |
-| D7  | Closeness levels: Close friend / Friend / Acquaintance (optional).                                                                                                                                    |
-| D8  | Telegram contact is either a username or a phone number in international format.                                                                                                                      |
-| D9  | Avatars are initials only.                                                                                                                                                                            |
-| D10 | Deleting a friend deletes their greeting history. Deleting the account deletes all user data permanently.                                                                                             |
-| D11 | UI is English only, light theme only, built on semantic design tokens exported from Penpot.                                                                                                           |
-| D12 | One custom cross-platform design (no separate iOS/Android variants).                                                                                                                                  |
+| #   | Decision                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Home screen is the **Upcoming list**; Calendar is a separate tab. Tabs: Upcoming, Calendar, Friends, History, Settings.                                                                                                                                                                                                                                                              |
+| D2  | A greeting is **saved to history when the user taps the Telegram button**. The app cannot confirm the message was actually sent. "Copy text" alone doesn't save. The user can delete a history entry.                                                                                                                                                                                |
+| D3  | Reminders: **global settings only**: master toggle, "On the day" toggle, "In advance" (None / 1 day / 3 days / 1 week, default 3 days), notification time (default 09:00, phone's local time zone).                                                                                                                                                                                  |
+| D4  | Birthday year is optional. No year → no age shown anywhere.                                                                                                                                                                                                                                                                                                                          |
+| D5  | Feb 29 birthdays are shown and reminded on **Feb 28** in non-leap years.                                                                                                                                                                                                                                                                                                             |
+| D6  | "Greeted" = a greeting saved for this friend from **7 days before** this year's birthday onward.                                                                                                                                                                                                                                                                                     |
+| D7  | Closeness levels: Close friend / Friend / Acquaintance (optional).                                                                                                                                                                                                                                                                                                                   |
+| D8  | Telegram contact is either a username or a phone number in international format.                                                                                                                                                                                                                                                                                                     |
+| D9  | Avatars are initials only.                                                                                                                                                                                                                                                                                                                                                           |
+| D10 | Deleting a friend deletes their greeting history. Deleting the account deletes all user data permanently.                                                                                                                                                                                                                                                                            |
+| D11 | UI is English only, light theme only, built on semantic design tokens exported from Penpot.                                                                                                                                                                                                                                                                                          |
+| D12 | One custom cross-platform design (no separate iOS/Android variants).                                                                                                                                                                                                                                                                                                                 |
+| D13 | "Greeted" window: from **7 days before** the birthday **through the end of the birthday** (phone's local date). The next day the friend rolls to next year's birthday (a Jan 2 birthday greeted on Dec 28 counts for that Jan 2).                                                                                                                                                    |
+| D14 | Upcoming sections are **calendar periods**, weeks run **Monday–Sunday**: Today (block); This week = today through Sunday; This month = rest of the calendar month after this week; Later = beyond, within 12 months. If this week crosses into the next month, those days stay in This week, This month is then empty (hidden), and the next month's days after Sunday are in Later. |
+| D15 | Birth year (optional) is 1900 to the current year; the full date can't be after today; Feb 29 needs a leap birth year.                                                                                                                                                                                                                                                               |
+| D16 | Feb 29 birthdays are **shown as Feb 29**; countdown, Upcoming position, Calendar day and reminders use **Feb 28** in non-leap years (refines D5).                                                                                                                                                                                                                                    |
+| D17 | Relative day copy: "Today" (0 days), "Tomorrow" (1 day), "in N days" otherwise.                                                                                                                                                                                                                                                                                                      |
+| D18 | Reminders: master switch **on** by default; one in-advance notification **per friend**; reminders fire at the chosen time in the phone's **current** time zone (the travel-day behavior is defined by SP-2); a signed-out device gets no reminders (its push token is removed).                                                                                                      |
+| D19 | The notification priming screen (S-02) is shown **once per installation**. S-14 shows the "notifications are off" banner whenever permission isn't granted and asks for permission if it was never asked. The Settings reminders summary reads "Off" when reminders are off.                                                                                                         |
+| D20 | Sign in with Apple on **iOS only**; Google on iOS and Android. No account linking: Apple and Google sign-ins are separate accounts. When Apple hides the name or email, Settings shows what's available (name, else the private-relay email) plus "Signed in with Apple".                                                                                                            |
+| D21 | Deleting the account **revokes the user's Sign in with Apple tokens**.                                                                                                                                                                                                                                                                                                               |
+| D22 | Telegram hand-off: if saving fails on the Telegram tap, Telegram doesn't open (error with retry); the copy-and-open fallback is saved with channel "Telegram"; greeting text is capped at **4,096 characters** (input stops, the API rejects more).                                                                                                                                  |
+| D23 | Friends: a duplicate is the same trimmed, case-insensitive name with the same day and month (non-blocking warning); Friends search matches names only. History swipe-to-delete confirms with the same dialog as Greeting Detail.                                                                                                                                                     |
+| D24 | The **public store release is in scope** as the last milestone (M5), after TestFlight / Play internal testing (M4).                                                                                                                                                                                                                                                                  |
+| D25 | The privacy policy and terms start from a generated template; the product owner reviews them.                                                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -143,25 +156,36 @@ Turn these into acceptance criteria on relevant stories, or into separate storie
 
 Use these as the starting point. You may split or merge epics if you explain why in the open-questions list.
 
-| Epic                   | Contents                                                                                                                                                                                                                                  | Milestone |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| E0 Foundations         | Monorepo or repos, TypeScript configs, linting, CI (GitHub Actions), Docker Compose for local dev (API + Postgres), environments (dev/prod), config and secrets, Drizzle setup, Expo app scaffold, API client, error handling conventions | M1        |
-| E1 Design system       | Import Penpot tokens into a RN theme, typography, shared components from design brief §2.2, navigation shell with 5 tabs                                                                                                                  | M1        |
-| E2 Authentication      | Apple + Google sign-in, backend token verification, sessions/refresh, sign out, first-run flow, notification priming                                                                                                                      | M1        |
-| E3 Friends             | Data model, CRUD API, Friends list + search, Add/Edit with validation and duplicate warning, Friend Profile                                                                                                                               | M2        |
-| E4 Upcoming & Calendar | Upcoming sections and "Today" block, Greeted status, Calendar month view, birthday date logic (no year, Feb 29, age)                                                                                                                      | M2        |
-| E5 Compose & Telegram  | Compose screen with context panel, Telegram hand-off per SP-1, save on tap, Telegram unavailable sheet, copy text                                                                                                                         | M2        |
-| E6 Greeting history    | History list, search, friend filter, detail, delete, send again, friend's greetings                                                                                                                                                       | M3        |
-| E7 Reminders           | Reminder settings API + screen, push token registration, scheduling per SP-2, notification content and deep links into the app                                                                                                            | M3        |
-| E8 Settings & account  | Settings screen, sign out, delete account (backend cascade)                                                                                                                                                                               | M3        |
-| E9 Release             | Hosting and deploy per SP-3, production database and backups, app icons/splash, privacy policy and terms, EAS builds, TestFlight + Play internal testing, store listing                                                                   | M4        |
+| Epic                   | Contents                                                                                                                                                                                                                                                 | Milestone |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| E10 Design             | Penpot tokens (incl. avatar colors) and tokens JSON export, component library, every screen S-01…S-15 with every state, offline states, app icon and splash, six prototype flows, small-screen check, handoff link. Done by the `product-designer` agent | M0        |
+| E0 Foundations         | Monorepo or repos, TypeScript configs, linting, CI (GitHub Actions), Docker Compose for local dev (API + Postgres), environments (dev/prod), config and secrets, Drizzle setup, Expo app scaffold, API client, error handling conventions                | M1        |
+| E1 Design system       | Import Penpot tokens into a RN theme, typography, shared components from design brief §2.2, navigation shell with 5 tabs                                                                                                                                 | M1        |
+| E2 Authentication      | Apple + Google sign-in, backend token verification, sessions/refresh, sign out, first-run flow, notification priming                                                                                                                                     | M1        |
+| E3 Friends             | Data model, CRUD API, Friends list + search, Add/Edit with validation and duplicate warning, Friend Profile                                                                                                                                              | M2        |
+| E4 Upcoming & Calendar | Upcoming sections and "Today" block, Greeted status, Calendar month view, birthday date logic (no year, Feb 29, age)                                                                                                                                     | M2        |
+| E5 Compose & Telegram  | Compose screen with context panel, Telegram hand-off per SP-1, save on tap, Telegram unavailable sheet, copy text                                                                                                                                        | M2        |
+| E6 Greeting history    | History list, search, friend filter, detail, delete, send again, friend's greetings                                                                                                                                                                      | M3        |
+| E7 Reminders           | Reminder settings API + screen, push token registration, scheduling per SP-2, notification content and deep links into the app                                                                                                                           | M3        |
+| E8 Settings & account  | Settings screen, sign out, delete account (backend cascade)                                                                                                                                                                                              | M3        |
+| E9 Release             | Hosting and deploy per SP-3, production database and backups, app icons/splash (artwork from E10), privacy policy and terms, EAS builds, TestFlight + Play internal testing                                                                              | M4        |
+| E11 Public release     | Store listings, screenshots and privacy forms, App Store review submission, Google Play production rollout, launch checklist                                                                                                                             | M5        |
 
 **Milestones**
 
+- **M0 Design:** Penpot tokens, components, every MVP screen and flow are designed and handed off.
 - **M1 Foundations:** user can sign in and sees the empty tabbed app.
 - **M2 Core loop:** user can add friends, see upcoming birthdays and send a greeting via Telegram.
 - **M3 Complete MVP:** history, reminders, settings and account deletion work.
-- **M4 Release:** app is deployed and installable through TestFlight / Play internal testing.
+- **M4 Release:** app is deployed and installable through TestFlight / Play internal testing (M4 ends here).
+- **M5 Public release:** app is live on the App Store and Google Play.
+
+**Design first (decided 20 Oct 2026):** no development work runs in parallel with design. Every M1–M5
+item without another blocker is blocked by the E10 design handoff.
+
+**Approved layout changes (20 Oct 2026):** E0 error tracking is scheduled in M3 (nothing needs it before
+testers arrive); E1 list/form components are in M2 (M1 stays focused on sign-in); spike SP-2 is in M2
+(so reminders aren't blocked in M3); spike SP-3 is in M4 (it depends on SP-2 and only blocks deployment).
 
 ---
 
@@ -175,7 +199,8 @@ Use these as the starting point. You may split or merge epics if you explain why
 ### Labels
 
 - `type:epic`, `type:story`, `type:task`, `type:spike`
-- `area:mobile`, `area:backend`, `area:db`, `area:infra`, `area:design`
+- `area:mobile` (apps/mobile), `area:backend` (apps/api only), `area:shared` (libs/contracts, libs/domain), `area:db`, `area:infra`, `area:design`
+- A task has exactly one `area:` label; work that touches contracts and the API is two tasks.
 - `priority:p0` (MVP blocker), `priority:p1` (MVP should-have), `priority:p2` (nice to have, can slip)
 
 ### Project fields
@@ -183,8 +208,8 @@ Use these as the starting point. You may split or merge epics if you explain why
 - **Status:** Backlog → Ready → In progress → In review → Done
 - **Priority:** P0 / P1 / P2
 - **Size:** XS (≤ 2 h), S (≤ ½ day), M (≤ 1 day), L (≤ 2 days). Tasks must be **M or smaller**; split anything larger.
-- **Milestone:** M1–M4
-- **Area:** mobile / backend / db / infra / design
+- **Milestone:** M0–M5
+- **Area:** mobile / backend / shared / db / infra / design
 
 ### Issue templates
 

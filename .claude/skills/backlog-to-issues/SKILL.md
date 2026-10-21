@@ -1,6 +1,6 @@
 ---
 name: backlog-to-issues
-description: Creates GitHub labels, milestones M1–M4, epic/story/task/spike issues, sub-issue links and blocked-by links from docs/product/mvp-backlog.md using the gh CLI, optionally adding them to a GitHub Project. Dry run by default; prints the issue tree it would create.
+description: Creates GitHub labels, milestones M0–M5, epic/story/task/spike issues, sub-issue links and blocked-by links from docs/product/mvp-backlog.md using the gh CLI, optionally adding them to a GitHub Project. Dry run by default; prints the issue tree it would create.
 argument-hint: '[--apply] [--project <number>] [path/to/backlog.md]'
 disable-model-invocation: true
 allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/backlog-to-issues.mjs docs/product/mvp-backlog.md) Bash(gh auth status *) Bash(gh repo view *)
@@ -28,7 +28,7 @@ way); the parser's exact rules are in [format.md](format.md).
 
 What `--apply` does, in order:
 
-1. Creates the §8 labels and milestones M1–M4 that don't exist yet (existing ones are left as is).
+1. Creates the §8 labels and milestones M0–M5 that don't exist yet (existing ones are left as is).
 2. Creates each issue as `[ID] Title` with its labels, milestone and, for organization repos that
    define them, its issue type (Epic / Feature / Task / Spike).
 3. Links each new issue to its `Parent` as a sub-issue.

@@ -11,6 +11,10 @@ import { pathToFileURL } from 'node:url';
 
 // ba-brief §7
 export const MILESTONES = {
+  M0: {
+    title: 'M0 Design',
+    description: 'Penpot tokens, components, every MVP screen and flow are designed and handed off.',
+  },
   M1: { title: 'M1 Foundations', description: 'User can sign in and sees the empty tabbed app.' },
   M2: {
     title: 'M2 Core loop',
@@ -24,6 +28,10 @@ export const MILESTONES = {
     title: 'M4 Release',
     description: 'App is deployed and installable through TestFlight / Play internal testing.',
   },
+  M5: {
+    title: 'M5 Public release',
+    description: 'App is live on the App Store and Google Play.',
+  },
 };
 
 // ba-brief §8: name → [color, description]
@@ -33,7 +41,8 @@ export const LABELS = {
   'type:task': ['0052cc', 'Technical task in one area, size M or smaller'],
   'type:spike': ['fbca04', 'Time-boxed investigation that ends in a written decision'],
   'area:mobile': ['0e8a16', 'apps/mobile'],
-  'area:backend': ['0e8a16', 'apps/api, libs/contracts'],
+  'area:backend': ['0e8a16', 'apps/api'],
+  'area:shared': ['0e8a16', 'libs/contracts, libs/domain'],
   'area:db': ['0e8a16', 'libs/db: schema, migrations, seed'],
   'area:infra': ['0e8a16', 'CI, Docker, hosting, release builds'],
   'area:design': ['0e8a16', 'Penpot, design tokens, shared components'],
