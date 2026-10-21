@@ -277,6 +277,14 @@ const GH_CALL_MS = 700; // rough duration of one gh call, used for estimates onl
 const RATE_LIMITED =
   /secondary rate limit|abuse detection|submitted too quickly|HTTP 429|rate limit exceeded/i;
 const NOT_SUPPORTED = /HTTP 404|HTTP 410|Not Found/i;
+// Network failures before the request reached GitHub: safe to retry, even for writes.
+const NETWORK_BEFORE_SEND =
+  /TLS handshake timeout|dial tcp|connection refused|no such host|network is unreachable|i\/o timeout/i;
+// Failures that may hit after GitHub processed the request: retried for reads only. For writes the
+// run stops instead; a re-run matches existing issues by [ID], so nothing is created twice.
+const NETWORK_ANY =
+  /TLS handshake timeout|dial tcp|connection refused|no such host|network is unreachable|i\/o timeout|connection reset|unexpected EOF|timeout awaiting response headers|HTTP 50[234]/i;
+const NETWORK_RETRY_MS = Number(process.env.BACKLOG_NETWORK_RETRY_MS ?? 5_000);
 
 class GhError extends Error {}
 class RateLimited extends Error {}
@@ -368,6 +376,15 @@ function call(argv, { input, write = false } = {}) {
       const { headers } = splitIncluded(err.stdout?.toString() ?? '');
       const message = (stderr || err.message).trim().split('\n')[0];
       const limited = RATE_LIMITED.test(stderr) || headers['x-ratelimit-remaining'] === '0';
+      const network = !limited && (write ? NETWORK_BEFORE_SEND : NETWORK_ANY).test(stderr);
+      if (network && attempt <= RETRIES) {
+        const wait = NETWORK_RETRY_MS * 2 ** (attempt - 1);
+        console.log(
+          `  … network error (${message}); waiting ${seconds(wait)} before retry ${attempt}/${RETRIES}`,
+        );
+        sleep(wait);
+        continue;
+      }
       if (!limited) throw new GhError(message);
       if (attempt > RETRIES)
         throw new RateLimited(`GitHub kept rate-limiting after ${RETRIES} retries (${message})`);
