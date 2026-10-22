@@ -97,10 +97,25 @@ Claude Code asks you to approve the four project servers on first start (`/mcp` 
 | ---------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `nx`       | nothing                            | runs `pnpm nx mcp`                                                                                                                                                                               |
 | `github`   | `GITHUB_PAT` in your **shell** env | Fine-grained PAT for this repo only: Issues RW, Pull requests RW, Contents R, Metadata R (Projects RW if used). Add `export GITHUB_PAT=…` to `~/.zshrc`, or `export GITHUB_PAT=$(gh auth token)` |
-| `penpot`   | Penpot open in a browser           | Run `npx -y @penpot/mcp@latest` in a terminal, then in Penpot: Plugins → load `http://localhost:4400/manifest.json` → "Connect to MCP server". Keep the plugin open                              |
+| `penpot`   | Penpot open in a browser           | Local server + plugin, see [Penpot MCP](#penpot-mcp) below                                                                                                                                       |
 | `postgres` | Docker + `docker compose up -d`    | Read-only role on the local dev DB; works with the defaults. Override with `READONLY_DATABASE_URL` in your shell env                                                                             |
 
 `.mcp.json` reads variables from your shell environment, not from `.env`.
+
+#### Penpot MCP
+
+1. Start the server with the newest `@penpot/mcp` that is not newer than your Penpot, e.g.
+   `npx -y @penpot/mcp@2.17.0` for Penpot 2.18. Don't use `@latest`: it lags behind
+   design.penpot.app (it gave 2.15.4 for Penpot 2.18.4). List versions with
+   `npm view @penpot/mcp dist-tags`. The plugin's "Version mismatch detected" banner shows both
+   versions; a small gap is fine.
+2. In the Penpot design file: Plugins → load `http://localhost:4400/manifest.json` → open the
+   plugin → click **Connect to MCP server**. The panel should say "Connected".
+3. **Keep the plugin panel open** and the tab in front while Claude works. The connection lives in
+   the panel: closing it, reopening the plugin or reloading the tab disconnects it (the server
+   logs `WebSocket connection closed`, and tools fail with "No Penpot plugin instances are
+   currently connected"). Only one Penpot tab can hold the connection.
+4. Chromium 142+ asks to allow local network access for the Penpot site; allow it.
 
 ## CI
 
