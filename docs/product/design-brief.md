@@ -60,6 +60,7 @@ This brief describes **what** each MVP screen must contain and **how it behaves*
 **Token names** (Penpot uses dot-separated names; groups appear as folders)
 
 - **Color (semantic):** `bg.default`, `bg.subtle`, `surface.default`, `surface.raised`, `text.primary`, `text.secondary`, `text.disabled`, `text.on-accent`, `accent.default`, `accent.pressed`, `accent.subtle`, `border.default`, `status.success`, `status.warning`, `status.danger`, `celebration` (today's-birthday highlight). Values filled in `light` only.
+- **Color (added in E10-S1):** `border.strong` (outlines of inputs, toggles and segmented controls, ≥ 3:1), `status.success-subtle`, `status.warning-subtle`, `status.danger-subtle` (badge and banner backgrounds), and avatar pairs `avatar.1.bg` / `avatar.1.fg` … `avatar.6.bg` / `avatar.6.fg` (A17).
 - **Typography:** `type.display`, `type.title-l`, `type.title-m`, `type.body`, `type.body-strong`, `type.caption`, `type.label`.
 - **Spacing:** `space.4`, `space.8`, `space.12`, `space.16`, `space.24`, `space.32`, `space.48` (4-pt scale).
 - **Radius:** `radius.sm`, `radius.md`, `radius.lg`, `radius.full`.
