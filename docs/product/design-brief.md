@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -59,7 +59,7 @@ This brief describes **what** each MVP screen must contain and **how it behaves*
 
 **Token names** (Penpot uses dot-separated names; groups appear as folders)
 
-- **Color (semantic):** `bg.default`, `bg.subtle`, `surface.default`, `surface.raised`, `text.primary`, `text.secondary`, `text.disabled`, `text.on-accent`, `accent.default`, `accent.pressed`, `accent.subtle`, `border.default`, `status.success`, `status.warning`, `status.danger`, `celebration` (today's-birthday highlight). Values filled in `light` only.
+- **Color (semantic):** `bg.default`, `bg.subtle`, `surface.default`, `surface.raised`, `text.primary`, `text.secondary`, `text.disabled`, `text.on-accent`, `accent.default`, `accent.pressed`, `accent.subtle`, `border.default`, `status.success`, `status.warning`, `status.danger`, `celebration` (today's-birthday highlight). Values filled in `light`; `dark` mirrors `light` for now.
 - **Color (added in E10-S1):** `border.strong` (outlines of inputs, toggles and segmented controls, ≥ 3:1), `status.success-subtle`, `status.warning-subtle`, `status.danger-subtle` (badge and banner backgrounds), and avatar pairs `avatar.1.bg` / `avatar.1.fg` … `avatar.6.bg` / `avatar.6.fg` (A17).
 - **Typography:** `type.display`, `type.title-l`, `type.title-m`, `type.body`, `type.body-strong`, `type.caption`, `type.label`.
 - **Spacing:** `space.4`, `space.8`, `space.12`, `space.16`, `space.24`, `space.32`, `space.48` (4-pt scale).
@@ -436,7 +436,7 @@ Show Mark as already greeted today on at least one Upcoming variant.
 
 All in one Penpot file, organized into these pages:
 
-1. **Tokens page** — visual overview of the token sets and themes from §2.1 (color swatches, type scale, spacing, radius, elevation), Light theme filled, Dark set empty. Plus the exported **tokens JSON** file.
+1. **Tokens page** — visual overview of the token sets and themes from §2.1 (color swatches, type scale, spacing, radius, elevation), Light theme filled, Dark set mirroring Light. Plus the exported **tokens JSON** file.
 2. **Components page** — all components in §2.2 as main components with variants and states, published as a shared library.
 3. **Screens page(s)** — every screen in §4 with every listed state, one board each, named `S-XX / State`.
 4. **Flows page** — the six Penpot prototype flows from §6, each named after its flow (e.g., "1 · First run").
