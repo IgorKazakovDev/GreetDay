@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -61,6 +61,9 @@ This brief describes **what** each MVP screen must contain and **how it behaves*
 
 - **Color (semantic):** `bg.default`, `bg.subtle`, `surface.default`, `surface.raised`, `text.primary`, `text.secondary`, `text.disabled`, `text.on-accent`, `accent.default`, `accent.pressed`, `accent.subtle`, `border.default`, `status.success`, `status.warning`, `status.danger`, `celebration` (today's-birthday highlight). Values filled in `light`; `dark` mirrors `light` for now.
 - **Color (added in E10-S1):** `border.strong` (outlines of inputs, toggles and segmented controls, ≥ 3:1), `status.success-subtle`, `status.warning-subtle`, `status.danger-subtle` (badge and banner backgrounds), and avatar pairs `avatar.1.bg` / `avatar.1.fg` … `avatar.6.bg` / `avatar.6.fg` (A17).
+- **Color (added in E10-S2):** `status.danger-pressed` (pressed destructive button), `skeleton` (loading placeholders), `focus.ring` (focused fields, distinct from the error red), `overlay.scrim` (behind dialogs and sheets; a literal `palette.neutral.900` at 40% because a reference can't carry alpha, so update it by hand if the palette changes).
+- **Size (added in E10-S2):** `size.avatar.s`, `size.avatar.m`, `size.avatar.l`, `size.touch-target`, `size.icon.sm`, `size.icon.md`, `size.icon.xl`.
+- **Border width (added in E10-S2):** `border.width.thin`, `border.width.thick`.
 - **Typography:** `type.display`, `type.title-l`, `type.title-m`, `type.body`, `type.body-strong`, `type.caption`, `type.label`.
 - **Spacing:** `space.4`, `space.8`, `space.12`, `space.16`, `space.24`, `space.32`, `space.48` (4-pt scale).
 - **Radius:** `radius.sm`, `radius.md`, `radius.lg`, `radius.full`.
