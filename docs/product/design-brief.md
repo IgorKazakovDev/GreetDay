@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -74,6 +74,8 @@ This brief describes **what** each MVP screen must contain and **how it behaves*
 Avatar (initials, deterministic background color from name; sizes S/M/L) · Birthday row (list item) · Section header · Primary / secondary / destructive / text buttons · Text field (default, focused, error, disabled) · Multiline text area · Chip (interest tag, removable) · Segmented control · Toggle row · Empty state block · Toast · Confirmation dialog · Bottom sheet · Bottom tab bar · Badge ("Today", "Greeted").
 
 **Added in E10-S3:** Sign-in button (`provider=apple|google` × `state=default|loading|disabled`), with the Apple and Google logos as nested components · Text link (44 pt tap target, underlined). The sign-in buttons use literal values instead of tokens: Apple black `#000000`; Google outline `#747775`, label `#1F1F1F` in Roboto; 38% opacity when disabled. Apple and Google set these, so they must not follow the app theme. The logos in the mocks are redrawn; the app ships the providers' official logo files.
+
+**Added in E10-S4:** Calendar day (`state=default|today|selected|today-selected|blank` × `birthdays=none|one|many`). Today is a ring, selected a filled circle, one birthday a dot, two or more a count badge, so no state relies on colour alone; each cell's accessible label reads like "October 17, today, 2 birthdays". Its sizes (32 pt circle, 6 pt dot, 18 pt badge) are literal values because there are no tokens for them. The S-03 Today card is assembled on the screen from component copies, not a library component; its avatars get a 2 pt `surface.default` ring because `avatar.2.bg` matches `celebration`.
 
 ### 2.3 Penpot conventions
 
