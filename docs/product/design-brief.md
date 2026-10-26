@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.8 · 26 Oct 2026 (§2.2 keyboard placeholder and save-failed banner added in E10-S6) · 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -78,6 +78,8 @@ Avatar (initials, deterministic background color from name; sizes S/M/L) · Birt
 **Added in E10-S4:** Calendar day (`state=default|today|selected|today-selected|blank` × `birthdays=none|one|many`). Today is a ring, selected a filled circle, one birthday a dot, two or more a count badge, so no state relies on colour alone; each cell's accessible label reads like "October 17, today, 2 birthdays". Its sizes (32 pt circle, 6 pt dot, 18 pt badge) are literal values because there are no tokens for them. The S-03 Today card is assembled on the screen from component copies, not a library component; its avatars get a 2 pt `surface.default` ring because `avatar.2.bg` matches `celebration`.
 
 **Added in E10-S5:** Text field gains an error state for the picker kind (used when Feb 29 is paired with a non-leap year). Forms with errors also show a danger Banner summary at the top ("Fix 3 fields to save: Name, Year and Telegram username."), because a long form can push an inline error below the fold; it scrolls with the form. Errors appear when a field loses focus, never while typing. The proposed error copy is on the S-06 handoff note in Penpot and is approved at handoff (E10-S11-T3).
+
+**Added in E10-S6:** System keyboard (placeholder), a labelled 336 pt box used only in mocks; the app uses a keyboard-avoiding layout and never hard-codes the keyboard height. The S-08 save failure (D22) is an inline danger Banner with "Try again" above the actions, not a Toast, because it needs an action and must not disappear on its own. Toasts are overlay boards sized to the toast, placed 16 pt above the bottom bar.
 
 ### 2.3 Penpot conventions
 
