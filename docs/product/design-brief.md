@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -76,6 +76,8 @@ Avatar (initials, deterministic background color from name; sizes S/M/L) · Birt
 **Added in E10-S3:** Sign-in button (`provider=apple|google` × `state=default|loading|disabled`), with the Apple and Google logos as nested components · Text link (44 pt tap target, underlined). The sign-in buttons use literal values instead of tokens: Apple black `#000000`; Google outline `#747775`, label `#1F1F1F` in Roboto; 38% opacity when disabled. Apple and Google set these, so they must not follow the app theme. The logos in the mocks are redrawn; the app ships the providers' official logo files.
 
 **Added in E10-S4:** Calendar day (`state=default|today|selected|today-selected|blank` × `birthdays=none|one|many`). Today is a ring, selected a filled circle, one birthday a dot, two or more a count badge, so no state relies on colour alone; each cell's accessible label reads like "October 17, today, 2 birthdays". Its sizes (32 pt circle, 6 pt dot, 18 pt badge) are literal values because there are no tokens for them. The S-03 Today card is assembled on the screen from component copies, not a library component; its avatars get a 2 pt `surface.default` ring because `avatar.2.bg` matches `celebration`.
+
+**Added in E10-S5:** Text field gains an error state for the picker kind (used when Feb 29 is paired with a non-leap year). Forms with errors also show a danger Banner summary at the top ("Fix 3 fields to save: Name, Year and Telegram username."), because a long form can push an inline error below the fold; it scrolls with the form. Errors appear when a field loses focus, never while typing. The proposed error copy is on the S-06 handoff note in Penpot and is approved at handoff (E10-S11-T3).
 
 ### 2.3 Penpot conventions
 
