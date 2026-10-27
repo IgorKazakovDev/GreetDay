@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.9 · 27 Oct 2026 (S-15 table matched to §7 and made gender-neutral; §2.2 settings row and OS mocks added in E10-S8) · 1.8 · 26 Oct 2026 (§2.2 keyboard placeholder and save-failed banner added in E10-S6) · 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.10 · 27 Oct 2026 (§2.2 offline pattern decided in E10-S9, A16) · 1.9 · 27 Oct 2026 (S-15 table matched to §7 and made gender-neutral; §2.2 settings row and OS mocks added in E10-S8) · 1.8 · 26 Oct 2026 (§2.2 keyboard placeholder and save-failed banner added in E10-S6) · 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -82,6 +82,8 @@ Avatar (initials, deterministic background color from name; sizes S/M/L) · Birt
 **Added in E10-S6:** System keyboard (placeholder), a labelled 336 pt box used only in mocks; the app uses a keyboard-avoiding layout and never hard-codes the keyboard height. The S-08 save failure (D22) is an inline danger Banner with "Try again" above the actions, not a Toast, because it needs an action and must not disappear on its own. Toasts are overlay boards sized to the toast, placed 16 pt above the bottom bar.
 
 **Added in E10-S8:** Settings row (`kind=plain|stacked|inline|static`, inline also disabled) for rows with a summary or a value and chevron. Lock screen (mock) and System notification (mock) draw OS UI for S-15 only; engineering doesn't build them.
+
+**Added in E10-S9 (offline, A16):** Banner `kind=offline` ("You're offline. You can still browse; changes need a connection.", plus a refresh-failed variant with "Try again") shows under the header of every signed-in screen while the device reports no connection. The last loaded data and every action stay visible and enabled: the network status decides only whether the banner shows, never whether an action runs. Any server action that fails, offline or not, uses one error-with-retry path: an inline danger Banner on S-06 and S-08 (input kept), otherwise an error Toast with "Try again" and the change reverted, including sign out. Error Toasts don't time out. Nothing is saved, queued or cleared locally while offline. The full rule and screen-reader behaviour are on `Components / Offline pattern` in Penpot.
 
 ### 2.3 Penpot conventions
 
