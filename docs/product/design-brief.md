@@ -2,7 +2,7 @@
 
 **Audience:** Designer agent producing Penpot mockups
 **Design tool:** Penpot (all deliverables live in one Penpot file, with the component library shared from it)
-**Version:** 1.8 · 26 Oct 2026 (§2.2 keyboard placeholder and save-failed banner added in E10-S6) · 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
+**Version:** 1.9 · 27 Oct 2026 (S-15 table matched to §7 and made gender-neutral; §2.2 settings row and OS mocks added in E10-S8) · 1.8 · 26 Oct 2026 (§2.2 keyboard placeholder and save-failed banner added in E10-S6) · 1.7 · 26 Oct 2026 (§2.2 picker error state and form error summary added in E10-S5) · 1.6 · 23 Oct 2026 (§2.2 Calendar day added in E10-S4) · 1.5 · 23 Oct 2026 (§2.2 sign-in components added in E10-S3) · 1.4 · 23 Oct 2026 (§2.1 tokens added in E10-S2) · 1.3 · 22 Oct 2026 (§2.1 tokens added in E10-S1; `dark` mirrors `light`) · 1.2 · 20 Oct 2026 (§9 and §10 updated with the product owner's answers) · 1.1 · 17 Oct 2026 (switched design tool from Figma to Penpot)
 **Owner:** Igor Kazakov
 
 ---
@@ -80,6 +80,8 @@ Avatar (initials, deterministic background color from name; sizes S/M/L) · Birt
 **Added in E10-S5:** Text field gains an error state for the picker kind (used when Feb 29 is paired with a non-leap year). Forms with errors also show a danger Banner summary at the top ("Fix 3 fields to save: Name, Year and Telegram username."), because a long form can push an inline error below the fold; it scrolls with the form. Errors appear when a field loses focus, never while typing. The proposed error copy is on the S-06 handoff note in Penpot and is approved at handoff (E10-S11-T3).
 
 **Added in E10-S6:** System keyboard (placeholder), a labelled 336 pt box used only in mocks; the app uses a keyboard-avoiding layout and never hard-codes the keyboard height. The S-08 save failure (D22) is an inline danger Banner with "Try again" above the actions, not a Toast, because it needs an action and must not disappear on its own. Toasts are overlay boards sized to the toast, placed 16 pt above the bottom bar.
+
+**Added in E10-S8:** Settings row (`kind=plain|stacked|inline|static`, inline also disabled) for rows with a summary or a value and chevron. Lock screen (mock) and System notification (mock) draw OS UI for S-15 only; engineering doesn't build them.
 
 ### 2.3 Penpot conventions
 
@@ -361,9 +363,9 @@ Avatars are initials only in the MVP (no photo upload).
 
 | Case                          | Title                               | Body                                        | Tap opens               |
 | ----------------------------- | ----------------------------------- | ------------------------------------------- | ----------------------- |
-| Birthday today (one)          | 🎂 Anna Petrova's birthday is today | She turns 30. Tap to write a greeting.      | Compose (S-08) for Anna |
+| Birthday today (one)          | 🎂 Anna Petrova's birthday is today | Turning 30. Tap to write a greeting.        | Compose (S-08) for Anna |
 | Birthday today (year unknown) | 🎂 Mark Davis's birthday is today   | Tap to write a greeting.                    | Compose for Mark        |
-| Several today                 | 🎂 3 birthdays today                | Anna, Mark and Sofia.                       | Upcoming (S-03)         |
+| Several today                 | 🎂 2 birthdays today                | Anna and Mark.                              | Upcoming (S-03)         |
 | In advance                    | Upcoming birthday                   | Sofia Lee's birthday is in 3 days (Oct 20). | Friend Profile (S-07)   |
 
 Use gender-neutral body copy where the friend's gender is unknown (the app doesn't store gender): e.g., "Turning 30. Tap to write a greeting."
