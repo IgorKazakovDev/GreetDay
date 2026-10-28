@@ -1,7 +1,7 @@
 # Design assets (app icon and splash)
 
 These PNGs are exported from the Penpot file "GreetDay", page **Brand**. The full spec is on the
-`Note / Icon` board there. For the requirements, see [design brief](../../product/design-brief.md)
+`Note / Icon` and `Note / Splash` boards there. For the requirements, see [design brief](../../product/design-brief.md)
 §2 (Telegram branding, one cross-platform design), A18 and §10 item 9.
 
 E9-S4 copies these files into `apps/mobile/assets` and wires them up in `app.json`. Don't edit the
@@ -25,4 +25,18 @@ PNGs by hand: change the Penpot board and export it again.
 
 ## Splash (#39)
 
-_To be added in the next task: splash artwork file(s), pixel size, background color hex and token._
+| File                   | Penpot board          | Pixels      | Transparency | Expo field (`expo-splash-screen` plugin) |
+| ---------------------- | --------------------- | ----------- | ------------ | ---------------------------------------- |
+| `splash-icon-1024.png` | `Splash / Icon image` | 1024 × 1024 | Yes (RGBA)   | `image`                                  |
+| `splash-preview.png`   | `Splash / Default`    | 393 × 852   | No           | none (review only)                       |
+
+- **Background color:** `#A93A22`, token `accent.default` (→ `palette.coral.600`). Use it as
+  `backgroundColor`. The mark is white (`text.on-accent`).
+- **Size:** `imageWidth: 200` (the Expo default, in dp), `resizeMode: "contain"`. These values are
+  assumed from Expo's docs and not yet checked against SDK 58; E9-S4 confirms them.
+- **Android 12+:** the system crops the splash icon to a centred circle 2/3 of its size. The mark
+  (624 px in the 1024 px image) stays inside that 683 px circle; see the board
+  `Splash / Icon image / Android 12 crop check`.
+- **Deviation:** task #39 asks for a `bg.*` token. The developer chose `accent.default` so the splash
+  matches the app icon and the launch flows from icon to splash. It's still a token color, as D11
+  requires.
