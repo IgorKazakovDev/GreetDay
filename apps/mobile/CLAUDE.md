@@ -23,6 +23,7 @@ src/screens/<name>/   Screen component + its *.spec.tsx (one folder per design-b
 src/components/       Reusable UI pieces (create when the second screen needs one)
 src/theme/            ThemeProvider + useTheme(); values come from @greetday/design-tokens
 src/api/              API client; responses validated with @greetday/contracts schemas
+src/config/           Build-time config, env.ts: the only place that reads EXPO_PUBLIC_*
 ```
 
 ## Screens and navigation

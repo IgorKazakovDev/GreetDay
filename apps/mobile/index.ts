@@ -1,5 +1,6 @@
 import { registerRootComponent } from 'expo';
-// Validates EXPO_PUBLIC_* config first, so a bad build fails at launch with a readable error.
+// Validates EXPO_PUBLIC_* first, so a bad build fails at startup: a readable error in development,
+// a crash with the message in the device logs in a release build.
 import './src/config/env';
 import { App } from './src/App';
 

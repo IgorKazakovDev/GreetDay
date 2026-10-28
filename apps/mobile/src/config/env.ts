@@ -17,7 +17,11 @@ export type AppConfig = {
 };
 
 const HELP = 'See .env.example and docs/environments.md.';
-const HTTP_URL = /^https?:\/\/[^\s/?#]+\S*$/i;
+// Origin (host, optional port, optional path) only: no userinfo (a credential would ship in the
+// bundle), no query or fragment (they would break `${apiUrl}${path}`), no empty host. Bracketed IPv6
+// is its own branch. Deliberately not `new URL()`: Hermes' URL support is partial.
+const HTTP_URL = /^https?:\/\/([^\s/?#@:[\]]+|\[[0-9a-f:.]+\])(:\d+)?(\/[^\s?#]*)?$/i;
+const HTTPS_URL = /^https:\/\//i;
 const LOOPBACK_URL = /^https?:\/\/(localhost|127(\.\d+){3}|0\.0\.0\.0|\[::1\])([:/?#]|$)/i;
 
 function isAppEnv(value: string): value is AppEnv {
@@ -58,6 +62,12 @@ export function parseEnv(raw: RawEnv): AppConfig {
   if (appEnv !== 'development' && LOOPBACK_URL.test(url)) {
     throw new Error(
       `EXPO_PUBLIC_API_URL is "${url}" in a ${appEnv} build, but localhost is unreachable from a device. ${HELP}`,
+    );
+  }
+  // Release builds block cleartext HTTP (iOS ATS, Android 9+), so http:// would fail at runtime.
+  if (appEnv !== 'development' && !HTTPS_URL.test(url)) {
+    throw new Error(
+      `EXPO_PUBLIC_API_URL must use https in a ${appEnv} build, but it is "${url}" (release builds block cleartext http). ${HELP}`,
     );
   }
 
