@@ -43,6 +43,9 @@ docker compose --profile api up -d --build # optional: run the API in a containe
 On a physical phone, set `EXPO_PUBLIC_API_URL` in `.env` to your Mac's LAN IP (e.g. `http://192.168.1.20:3000`)
 and start the API with `HOST=0.0.0.0`.
 
+Every environment variable, where it is set (local, CI, production, EAS builds) and which ones are
+secret: [docs/environments.md](docs/environments.md).
+
 ## Working with Claude Code
 
 Everything lives in [`.claude/`](.claude/) and [`.mcp.json`](.mcp.json) and is committed. Personal
