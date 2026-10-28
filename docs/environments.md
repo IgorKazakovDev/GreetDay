@@ -53,13 +53,24 @@ in `ci.yml`. That database lives only for one job, so its password is not a secr
 
 ### Mobile
 
-| Variable              | Used by             | Local                                          | EAS `development`                  | EAS `preview` | EAS `production`                                  | Secret    |
-| --------------------- | ------------------- | ---------------------------------------------- | ---------------------------------- | ------------- | ------------------------------------------------- | --------- |
-| `EXPO_PUBLIC_API_URL` | mobile (API client) | `.env`: `http://localhost:3000` or your LAN IP | from your local `.env` (see below) | `eas.json`    | `eas.json` (production URL; placeholder until E9) | **Never** |
+| Variable              | Used by                | Local                                          | EAS `development`                  | EAS `preview`                                                     | EAS `production`                                                  | Secret    |
+| --------------------- | ---------------------- | ---------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- | --------- |
+| `EXPO_PUBLIC_API_URL` | mobile (API client)    | `.env`: `http://localhost:3000` or your LAN IP | from your local `.env` (see below) | `eas.json`: `https://api.greetday.invalid` (placeholder until E9) | `eas.json`: `https://api.greetday.invalid` (placeholder until E9) | **Never** |
+| `EXPO_PUBLIC_APP_ENV` | mobile (config helper) | `.env`: `development` (default when unset)     | `eas.json`: `development`          | `eas.json`: `preview`                                             | `eas.json`: `production`                                          | No        |
 
 A `development` build is a custom Expo Go: it loads JavaScript from the dev server on your machine
 (`pnpm nx start mobile`), so it uses your local `.env`. `preview` and `production` builds bundle the
 JavaScript on EAS, so they use the `env` of their profile in `eas.json`.
+
+`https://api.greetday.invalid` is a placeholder: the `.invalid` TLD never resolves, so a preview or
+production build fails loudly instead of quietly talking to the wrong server. E9 replaces it with the
+real URL in `eas.json`.
+
+The app reads both variables in one place, `apps/mobile/src/config/env.ts`, and throws a readable
+error at startup when `EXPO_PUBLIC_API_URL` is missing or not an http(s) URL, when
+`EXPO_PUBLIC_APP_ENV` is not one of the three names, or when a preview/production build points at
+localhost. The environment name is exported as `appEnv` so a later Settings screen can show it next
+to the app version.
 
 ### Tooling
 

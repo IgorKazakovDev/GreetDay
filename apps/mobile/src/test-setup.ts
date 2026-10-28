@@ -39,3 +39,8 @@ jest.mock(
   'react-native-safe-area-context',
   () => jest.requireActual('react-native-safe-area-context/jest/mock').default,
 );
+
+// src/config/env.ts throws when EXPO_PUBLIC_API_URL is missing, and tests must not depend on a
+// developer's local root env file. Same values as .env.example.
+process.env.EXPO_PUBLIC_API_URL ??= 'http://localhost:3000';
+process.env.EXPO_PUBLIC_APP_ENV ??= 'development';
