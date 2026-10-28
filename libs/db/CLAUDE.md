@@ -34,8 +34,9 @@ scripts/               assert-local-db.ts, seed.ts
 - **Timestamps:** every table gets
   `createdAt: timestamp({ withTimezone: true }).notNull().defaultNow()` and
   `updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date())`.
-- **Birthdays** are a `date` column (no time, no zone), with year nullable if the brief allows
-  "year unknown". Date math lives in `@greetday/domain`, not in SQL.
+- **Birthdays** are `birth_month` + `birth_day` (smallint, NOT NULL) and `birth_year` (smallint,
+  NULL = year unknown), with check constraints for valid dates. Not a `date` column: see
+  [ADR 0004](../../docs/decisions/0004-mvp-data-model.md). Date math lives in `@greetday/domain`, not in SQL.
 - **Ownership:** every user-owned table has `userId` → `users.id` with `onDelete: 'cascade'` and an index on it.
 - Add indexes for every foreign key and every column used in a `where` on a hot path.
 - Enums: `pgEnum` only for closed sets that change rarely; otherwise text + Zod validation.
