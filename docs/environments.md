@@ -6,13 +6,14 @@ each place, and whether it is a secret.
 
 ## Where values live
 
-| Place               | Source of values                                                                                                                                  | Committed?                |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Local               | `.env` at the repo root (copy of `.env.example`). Nx and docker compose read it.                                                                  | No (git-ignored)          |
-| Local, MCP servers  | Your **shell** environment (`~/.zshrc`). `.mcp.json` does not read `.env`.                                                                        | No                        |
-| CI (GitHub Actions) | `env:` in `.github/workflows/ci.yml` for throwaway values; repository secrets (Settings → Secrets and variables → Actions) for real secrets       | Values in `ci.yml` only   |
-| Production API      | The hosting provider's secret store / environment settings (chosen in SP-3, filled in E9)                                                         | No                        |
-| EAS builds (mobile) | `env` per build profile in `apps/mobile/eas.json` for public values; EAS environment variables on expo.dev for secrets used only during the build | Values in `eas.json` only |
+| Place                | Source of values                                                                                                                                                                                             | Committed?                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| Local                | `.env` at the repo root (copy of `.env.example`). Nx and docker compose read it.                                                                                                                             | No (git-ignored)                    |
+| Local, API container | `docker compose --profile api up`: `docker-compose.yml` hard-codes `NODE_ENV=production`, `HOST=0.0.0.0`, `PORT=3000` inside the container, and builds `DATABASE_URL` from the `POSTGRES_*` values in `.env` | Values in `docker-compose.yml` only |
+| Local, MCP servers   | Your **shell** environment (`~/.zshrc`). `.mcp.json` does not read `.env`.                                                                                                                                   | No                                  |
+| CI (GitHub Actions)  | `env:` in `.github/workflows/ci.yml` for throwaway values; repository secrets (Settings → Secrets and variables → Actions) for real secrets                                                                  | Values in `ci.yml` only             |
+| Production API       | The hosting provider's secret store / environment settings (chosen in SP-3, filled in E9)                                                                                                                    | No                                  |
+| EAS builds (mobile)  | `env` per build profile in `apps/mobile/eas.json` for public values; EAS environment variables on expo.dev for secrets used only during the build                                                            | Values in `eas.json` only           |
 
 ## Variables
 
@@ -20,23 +21,24 @@ each place, and whether it is a secret.
 
 ### API and database
 
-| Variable            | Used by                       | Local (`.env`)                                  | CI (`ci.yml`)                          | Production                                                        | Secret                                                   |
-| ------------------- | ----------------------------- | ----------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
-| `DATABASE_URL`      | api, db scripts               | local dev DB                                    | service container (throwaway password) | host secret store                                                 | **Yes** in prod (contains the DB password)               |
-| `TEST_DATABASE_URL` | api integration tests         | local test DB                                   | service container                      | not used                                                          | No (local only)                                          |
-| `NODE_ENV`          | api                           | `development`                                   | set by the test helper (`test`)        | `production`                                                      | No                                                       |
-| `HOST`              | api                           | `127.0.0.1` (`0.0.0.0` for a phone on your LAN) | not used (tests skip the server)       | `0.0.0.0` (host may require it)                                   | No                                                       |
-| `PORT`              | api                           | `3000`                                          | not used (tests skip the server)       | set by the host or `3000`                                         | No                                                       |
-| `LOG_LEVEL`         | api                           | `info`                                          | set by the test helper (`silent`)      | `info`                                                            | No                                                       |
-| `ALLOW_REMOTE_DB`   | `db:migrate`, `db:seed` guard | never set                                       | never set                              | only for a deliberate one-off production migration, in that shell | No, but dangerous: it disables the "local DB only" guard |
+| Variable            | Used by                       | Local (`.env`)                                  | CI (`ci.yml`)                          | Production                                                                                             | Secret                                                   |
+| ------------------- | ----------------------------- | ----------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `DATABASE_URL`      | api, db scripts               | local dev DB                                    | service container (throwaway password) | host secret store                                                                                      | **Yes** in prod (contains the DB password)               |
+| `TEST_DATABASE_URL` | api integration tests         | local test DB                                   | service container                      | not used                                                                                               | No (throwaway local/CI databases)                        |
+| `NODE_ENV`          | api                           | `development`                                   | set by the test helper (`test`)        | `production`                                                                                           | No                                                       |
+| `HOST`              | api                           | `127.0.0.1` (`0.0.0.0` for a phone on your LAN) | not used (tests skip the server)       | `0.0.0.0` (required: `127.0.0.1` is unreachable from outside the container)                            | No                                                       |
+| `PORT`              | api                           | `3000`                                          | not used (tests skip the server)       | set by the host or `3000`                                                                              | No                                                       |
+| `LOG_LEVEL`         | api                           | `info`                                          | set by the test helper (`silent`)      | `info`                                                                                                 | No                                                       |
+| `ALLOW_REMOTE_DB`   | `db:migrate`, `db:seed` guard | never set                                       | never set                              | only for a deliberate one-off production migration, typed by a human in that shell (never by an agent) | No, but dangerous: it disables the "local DB only" guard |
 
 The API validates its variables at startup (`apps/api/src/env.ts`) and exits with a list of the bad
 ones. Add every new API variable to that schema so it keeps failing fast.
 
 ### Local Postgres (docker compose)
 
-Only used to create the local database container and its init script (`docker/postgres/init`).
-All have working defaults; none exist in CI or production.
+Used to create the local database container and its init script (`docker/postgres/init`), and,
+with the `api` profile, to build the API container's `DATABASE_URL`. All have working defaults;
+none exist in CI or production.
 
 | Variable                     | Local default             | Secret                                        |
 | ---------------------------- | ------------------------- | --------------------------------------------- |
@@ -53,10 +55,10 @@ in `ci.yml`. That database lives only for one job, so its password is not a secr
 
 ### Mobile
 
-| Variable              | Used by                | Local                                          | EAS `development`                  | EAS `preview`                                                     | EAS `production`                                                  | Secret    |
-| --------------------- | ---------------------- | ---------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- | --------- |
-| `EXPO_PUBLIC_API_URL` | mobile (API client)    | `.env`: `http://localhost:3000` or your LAN IP | from your local `.env` (see below) | `eas.json`: `https://api.greetday.invalid` (placeholder until E9) | `eas.json`: `https://api.greetday.invalid` (placeholder until E9) | **Never** |
-| `EXPO_PUBLIC_APP_ENV` | mobile (config helper) | `.env`: `development` (default when unset)     | `eas.json`: `development`          | `eas.json`: `preview`                                             | `eas.json`: `production`                                          | No        |
+| Variable              | Used by                | Local                                          | EAS `development`                                                                | EAS `preview`                                                     | EAS `production`                                                  | Secret    |
+| --------------------- | ---------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- | --------- |
+| `EXPO_PUBLIC_API_URL` | mobile (API client)    | `.env`: `http://localhost:3000` or your LAN IP | from your local `.env` (see below)                                               | `eas.json`: `https://api.greetday.invalid` (placeholder until E9) | `eas.json`: `https://api.greetday.invalid` (placeholder until E9) | **Never** |
+| `EXPO_PUBLIC_APP_ENV` | mobile (config helper) | `.env`: `development` (default when unset)     | from your local `.env` (`eas.json` sets `development` for the native build only) | `eas.json`: `preview`                                             | `eas.json`: `production`                                          | No        |
 
 A `development` build is a custom Expo Go: it loads JavaScript from the dev server on your machine
 (`pnpm nx start mobile`), so it uses your local `.env`. `preview` and `production` builds bundle the
@@ -66,11 +68,18 @@ JavaScript on EAS, so they use the `env` of their profile in `eas.json`.
 production build fails loudly instead of quietly talking to the wrong server. E9 replaces it with the
 real URL in `eas.json`.
 
-The app reads both variables in one place, `apps/mobile/src/config/env.ts`, and throws a readable
-error at startup when `EXPO_PUBLIC_API_URL` is missing or not an http(s) URL, when
-`EXPO_PUBLIC_APP_ENV` is not one of the three names, or when a preview/production build points at
-localhost. The environment name is exported as `appEnv` so a later Settings screen can show it next
-to the app version.
+The app reads both variables in one place, `apps/mobile/src/config/env.ts`, and throws at startup
+(a readable error in development, a startup crash with the message in device logs in a release
+build) when:
+
+- `EXPO_PUBLIC_APP_ENV` is not one of the three names;
+- `EXPO_PUBLIC_API_URL` is missing or not a plain http(s) URL: a host, optional port and path, but
+  no query, fragment or `user:pass@` (a trailing slash is stripped);
+- a `preview`/`production` build points at localhost, or uses `http://`: release builds block
+  cleartext HTTP, much like a browser blocks mixed content.
+
+The environment name is exported as `appEnv` so a later Settings screen can show it next to the app
+version.
 
 ### Tooling
 
@@ -97,13 +106,20 @@ JavaScript bundle at build time. Anyone who installs the app can read it. So:
 Rotate when a value may have leaked (pasted in chat, committed, shown in a screenshot or log) or a
 person with access leaves.
 
-1. **Create the new value first** (new database password with `ALTER ROLE … PASSWORD`, new GitHub
-   token, new EAS variable), so there is no gap.
+**Tokens that can coexist** (GitHub tokens, EAS variables, most API keys):
+
+1. **Create the new value first**, so old and new both work for a while.
 2. **Update every place it lives** from the tables above (host secret store, GitHub Actions secret,
    EAS variable, your shell).
 3. **Restart or redeploy** what reads it: the API reads env at startup; EAS values only reach the
    next build.
 4. **Revoke the old value** and check that things still work (`GET /health`, a CI run).
+
+**Database password:** a Postgres role has only one password, and `ALTER ROLE … PASSWORD` replaces
+it immediately, so the running API loses its connection until it restarts with the new value.
+Either accept a short window (change the password, update `DATABASE_URL` in the host secret store,
+restart the API right away), or avoid the gap with a second role: create a new login role with the
+same grants, switch `DATABASE_URL` to it, restart, then drop the old role.
 
 If a secret was committed to git, rotate it: deleting the commit does not help, because clones and
 forks keep the history. If a secret ever lands in an `EXPO_PUBLIC_*` variable, rotate it
