@@ -60,6 +60,7 @@ pnpm nx graph                                 # project graph
 ## Environment
 
 - `.env` at the repo root (copy `.env.example`). Nx loads it for every task; docker compose reads it too.
+- Per-environment values and which variables are secret: [docs/environments.md](docs/environments.md).
 - Never read, print or edit `.env` files. Add new variables to `.env.example` with a comment instead.
 - Integration tests use `TEST_DATABASE_URL` (local test DB, migrated automatically by the test setup).
 
