@@ -76,9 +76,12 @@ Each state gets a test.
 - Call the API through `src/api/client.ts` (`apiGet`, `apiPost`, `apiPatch`, `apiPut`, `apiDelete`; each
   takes the response schema from `@greetday/contracts`). Never hand-write response types.
 - Failures are always an `ApiError` with a typed `code` (the documented API codes, plus client-only
-  `NETWORK_ERROR` for no connection or timeout, and `UNKNOWN`). Show `messageFor(error)` from
-  `src/api/errors.ts`, **never `error.message`** (it can hold server text). Auth headers plug in via
-  `setAuthHeaderProvider`.
+  `NETWORK_ERROR` for no connection or timeout, and `UNKNOWN`). A code this build doesn't know is
+  classified by HTTP status (401 → `UNAUTHENTICATED`, 404, 429, 5xx), so branch on `code`. Show
+  `messageFor(error)` from `src/api/errors.ts`. `error.message` is developer-safe, and the server's
+  own text sits in `error.serverMessage` (logs only, **never render it**). Auth headers plug in via
+  `setAuthHeaderProvider`; a provider may throw an `ApiError` (e.g. `UNAUTHENTICATED`) and it is
+  rethrown unchanged.
 - `EXPO_PUBLIC_API_URL` sets the base URL and `EXPO_PUBLIC_APP_ENV` the build environment; both are
   read only in `src/config/env.ts` (import `apiUrl` / `appEnv` from `@/config/env`). Values per EAS
   profile: [docs/environments.md](../../docs/environments.md). `EXPO_PUBLIC_*` values ship in the

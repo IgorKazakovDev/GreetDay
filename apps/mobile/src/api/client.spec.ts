@@ -93,6 +93,35 @@ describe('api client', () => {
 
       expect(fetchMock.mock.calls[0][1]?.headers).not.toHaveProperty('Authorization');
     });
+
+    it('rethrows an ApiError thrown by the provider unchanged', async () => {
+      const unauthenticated = new ApiError(401, 'UNAUTHENTICATED', { detail: 'refresh rejected' });
+      setAuthHeaderProvider(() => Promise.reject(unauthenticated));
+
+      const error = await caught(apiGet('/things/a1', schema));
+
+      expect(error).toBe(unauthenticated);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('reports a provider bug as UNKNOWN, not NETWORK_ERROR', async () => {
+      setAuthHeaderProvider(() => {
+        throw new Error('storage unavailable');
+      });
+
+      const error = await caught(apiGet('/things/a1', schema));
+
+      expect(error).toMatchObject({ status: 0, code: 'UNKNOWN' });
+      expect(error.reason).toBeUndefined();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('reports an unserialisable body as UNKNOWN without calling fetch', async () => {
+      const error = await caught(apiPost('/things', schema, { n: 1n }));
+
+      expect(error).toMatchObject({ status: 0, code: 'UNKNOWN' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('error responses', () => {
@@ -103,31 +132,66 @@ describe('api client', () => {
 
       const error = await caught(apiGet('/things/x', schema));
 
-      expect(error).toMatchObject({ status: 404, code: 'NOT_FOUND', message: 'No such thing' });
+      expect(error).toMatchObject({
+        status: 404,
+        code: 'NOT_FOUND',
+        serverMessage: 'No such thing',
+      });
     });
 
-    it('maps a code this build does not know to UNKNOWN', async () => {
-      fetchMock.mockResolvedValue(json({ error: { code: 'FROM_THE_FUTURE', message: 'x' } }, 409));
+    it('keeps the server text out of message', async () => {
+      fetchMock.mockResolvedValue(
+        json({ error: { code: 'NOT_FOUND', message: 'No such thing' } }, 404),
+      );
 
       const error = await caught(apiGet('/things/x', schema));
 
-      expect(error).toMatchObject({ status: 409, code: 'UNKNOWN' });
+      expect(error.message).toBe('API error 404 NOT_FOUND');
     });
 
-    it('throws UNKNOWN for a non-JSON error body such as a proxy 502 page', async () => {
+    it.each([
+      [401, 'UNAUTHENTICATED'],
+      [404, 'NOT_FOUND'],
+      [429, 'RATE_LIMITED'],
+      [500, 'INTERNAL_ERROR'],
+      [503, 'INTERNAL_ERROR'],
+      [409, 'UNKNOWN'],
+      [418, 'UNKNOWN'],
+    ])(
+      'classifies a code this build does not know by its status (%i -> %s)',
+      async (status, code) => {
+        fetchMock.mockResolvedValue(
+          json({ error: { code: 'FROM_THE_FUTURE', message: 'x' } }, status),
+        );
+
+        const error = await caught(apiGet('/things/x', schema));
+
+        expect(error).toMatchObject({ status, code, serverMessage: 'x' });
+      },
+    );
+
+    it('classifies a non-JSON error body such as a proxy 502 page as INTERNAL_ERROR', async () => {
       fetchMock.mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502 }));
 
       const error = await caught(apiGet('/things/x', schema));
 
-      expect(error).toMatchObject({ status: 502, code: 'UNKNOWN' });
+      expect(error).toMatchObject({ status: 502, code: 'INTERNAL_ERROR' });
     });
 
-    it('throws UNKNOWN for a JSON error body that is not an ErrorResponse', async () => {
+    it('classifies a JSON error body that is not an ErrorResponse by status', async () => {
       fetchMock.mockResolvedValue(json({ oops: true }, 500));
 
       const error = await caught(apiGet('/things/x', schema));
 
-      expect(error).toMatchObject({ status: 500, code: 'UNKNOWN' });
+      expect(error).toMatchObject({ status: 500, code: 'INTERNAL_ERROR' });
+    });
+
+    it('throws UNKNOWN for an unexpected status without a usable body', async () => {
+      fetchMock.mockResolvedValue(new Response('teapot', { status: 418 }));
+
+      const error = await caught(apiGet('/things/x', schema));
+
+      expect(error).toMatchObject({ status: 418, code: 'UNKNOWN' });
     });
 
     it('keeps a 401 without a usable body distinguishable as UNAUTHENTICATED', async () => {

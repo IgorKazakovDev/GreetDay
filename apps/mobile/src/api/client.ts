@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { errorResponseSchema, healthResponseSchema } from '@greetday/contracts';
 import { apiUrl } from '@/config/env';
-import { ApiError, toClientErrorCode } from './errors';
+import { ApiError, codeForStatus, toClientErrorCode } from './errors';
 
 export { ApiError, messageFor, type ClientErrorCode } from './errors';
 
@@ -46,16 +46,39 @@ async function request<S extends z.ZodType>(
   }, timeoutMs);
 
   try {
+    // Build headers and body before the network `try`, so a failure here is not mistaken for
+    // NETWORK_ERROR. The timer is already running, so a slow auth provider counts towards the timeout.
+    let providerHeaders: HeaderMap | undefined;
+    try {
+      providerHeaders = await authHeaderProvider?.();
+    } catch (cause) {
+      // A provider may throw an ApiError itself (e.g. UNAUTHENTICATED when a token refresh is
+      // rejected); keep it as is so the caller can send the user to sign-in.
+      if (cause instanceof ApiError) throw cause;
+      throw new ApiError(0, 'UNKNOWN', { detail: `Auth header provider failed: ${String(cause)}` });
+    }
+    const headers: HeaderMap = { Accept: 'application/json', ...providerHeaders };
+
+    let serialisedBody: string | undefined;
+    if (body !== undefined) {
+      try {
+        serialisedBody = JSON.stringify(body);
+      } catch (cause) {
+        throw new ApiError(0, 'UNKNOWN', {
+          detail: `Request body could not be serialised: ${String(cause)}`,
+        });
+      }
+      headers['Content-Type'] = 'application/json';
+    }
+
     let status: number;
     let ok: boolean;
     let text: string;
     try {
-      const headers: HeaderMap = { Accept: 'application/json', ...(await authHeaderProvider?.()) };
-      if (body !== undefined) headers['Content-Type'] = 'application/json';
       const res = await fetch(`${apiUrl}${path}`, {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: serialisedBody,
         signal: controller.signal,
       });
       status = res.status;
@@ -64,8 +87,11 @@ async function request<S extends z.ZodType>(
     } catch (cause) {
       // fetch rejects (instead of resolving with a bad status) when no response arrived at all.
       throw timedOut
-        ? new ApiError(0, 'NETWORK_ERROR', 'Request timed out', 'timeout')
-        : new ApiError(0, 'NETWORK_ERROR', `Network request failed: ${String(cause)}`, 'network');
+        ? new ApiError(0, 'NETWORK_ERROR', { detail: 'Request timed out', reason: 'timeout' })
+        : new ApiError(0, 'NETWORK_ERROR', {
+            detail: `Network request failed: ${String(cause)}`,
+            reason: 'network',
+          });
     }
 
     let json: unknown;
@@ -78,27 +104,19 @@ async function request<S extends z.ZodType>(
     if (!ok) {
       const parsed = errorResponseSchema.safeParse(json);
       if (parsed.success) {
-        throw new ApiError(
-          status,
-          toClientErrorCode(parsed.data.error.code),
-          parsed.data.error.message,
-        );
+        throw new ApiError(status, toClientErrorCode(parsed.data.error.code, status), {
+          serverMessage: parsed.data.error.message,
+        });
       }
-      // A 401 is unambiguous even without a body, so the auth flow can still hook in.
-      throw new ApiError(
-        status,
-        status === 401 ? 'UNAUTHENTICATED' : 'UNKNOWN',
-        `Request failed with ${status}`,
-      );
+      // No usable body: classify by status alone, the same way as an unknown code above.
+      throw new ApiError(status, codeForStatus(status), { detail: 'No usable error body' });
     }
 
     const result = schema.safeParse(json);
     if (!result.success) {
-      throw new ApiError(
-        status,
-        'UNKNOWN',
-        `Response did not match the schema: ${result.error.message}`,
-      );
+      throw new ApiError(status, 'UNKNOWN', {
+        detail: `Response did not match the schema: ${result.error.message}`,
+      });
     }
     return result.data;
   } finally {
