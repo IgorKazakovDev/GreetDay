@@ -25,8 +25,8 @@ They have no native iOS/Android background.
 ## How to explain
 
 1. **Start from what they know.** Bridge from React on the web (e.g. "a Fastify plugin is like a
-   React context provider: it decorates the app for everything registered inside it"; "`NavigationContainer` is
-   like `<BrowserRouter>`, and a stack navigator is a history stack you push screens onto"; "Metro is the Vite of React Native"). Never assume
+   React context provider: it decorates the app for everything registered inside it"; "Expo Router's `src/app/`
+   folder is like the Next.js App Router (a file is a route, `_layout.tsx` is `layout.tsx`), and a stack is a history stack you push screens onto"; "Metro is the Vite of React Native"). Never assume
    knowledge of native iOS/Android tooling (Xcode, Gradle, Room, Core Data).
 2. **Use this codebase.** Quote short snippets with `path:line` references, not generic examples.
 3. **Show, then tell.** When SQL is involved, show the query/migration and, if useful, run

@@ -1,8 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "files": [],
-  "include": [],
+  "include": [".expo/types/**/*.ts", "expo-env.d.ts"],
   "references": [
+    {
+      "path": "../../libs/domain"
+    },
+    {
+      "path": "../../libs/design-tokens"
+    },
+    {
+      "path": "../../libs/contracts"
+    },
     {
       "path": "./tsconfig.app.json"
     },
@@ -11,8 +20,15 @@
     }
   ],
   "compilerOptions": {
+    "outDir": "out-tsc/root",
+    "tsBuildInfoFile": "out-tsc/root/tsconfig.tsbuildinfo",
     "paths": {
       "@/*": ["./src/*"]
+    }
+  },
+  "nx": {
+    "sync": {
+      "ignoredReferences": ["../../libs/domain", "../../libs/design-tokens", "../../libs/contracts"]
     }
   }
 }

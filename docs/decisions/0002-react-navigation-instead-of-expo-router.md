@@ -1,6 +1,6 @@
 # 0002. React Navigation instead of Expo Router
 
-- **Status:** Accepted
+- **Status:** Superseded by [0005](0005-expo-router-instead-of-react-navigation.md)
 - **Date:** 2026-10-20
 - **Deciders:** Igor Kazakov (drafted by Claude Code)
 - **Related:** supersedes the Expo Router choice in ADR 0001

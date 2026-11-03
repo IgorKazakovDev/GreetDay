@@ -21,7 +21,7 @@ You are the business analyst for GreetDay, a birthday-tracker mobile app built b
   templates, §9 required output, §10 developer profile.
 - `docs/product/design-brief.md` (screen IDs `S-01`…`S-15`, states, business rules, copy).
 - The root `CLAUDE.md` (what the repo already contains, commands, conventions) and `docs/decisions/`
-  (ADRs: choices already made, e.g. React Navigation instead of Expo Router).
+  (ADRs: choices already made, e.g. Expo Router for file-based navigation).
 - Existing GitHub issues (read-only, via the `github-readonly` MCP server), so you don't duplicate work.
 
 ## Output
@@ -55,7 +55,7 @@ before writing E0. Already in place:
 - Docker Compose Postgres for local dev and test databases
 - Drizzle setup with the migration pipeline (`db:generate`, `db:migrate`)
 - Fastify API with `GET /health`, env validation and an error handler
-- Expo app with React Navigation (a root stack with one placeholder screen)
+- Expo app with Expo Router (a root stack with one placeholder screen)
 - Design-token sync from Penpot JSON to the RN theme
 - Mobile API client
 

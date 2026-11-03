@@ -63,22 +63,22 @@ export function UpcomingScreen({ state }: UpcomingScreenProps) {
 const styles = StyleSheet.create({ fill: { flex: 1 } });
 ```
 
-## Registering it (src/navigation/types.ts + RootNavigator.tsx)
+## The route (src/app/upcoming.tsx)
 
 ```tsx
-// types.ts
-export type RootStackParamList = {
-  Home: undefined;
-  Upcoming: undefined;
-};
-
-// RootNavigator.tsx, inside <RootStack.Navigator>
-<RootStack.Screen name="Upcoming" component={UpcomingRoute} />;
+// Route "/upcoming". Route files stay thin; the screen and its tests live in src/screens.
+export { UpcomingRoute as default } from '@/screens/upcoming/UpcomingRoute';
 ```
 
-`UpcomingRoute` (in `src/screens/upcoming/UpcomingRoute.tsx`) receives `RootStackScreenProps<'Upcoming'>`,
-fetches data and passes it to `UpcomingScreen`'s `state` prop, which keeps the screen easy to test.
-Navigate to it from anywhere with `navigation.navigate('Upcoming')` (`useNavigation()` is typed globally).
+The file name is the whole registration: no param list and no navigator to edit (like adding
+`app/upcoming/page.tsx` in Next.js). A screen that takes no props can export itself
+instead (Expo Router doesn't type-check route props, so never export one that needs props), as `src/app/index.tsx` does with `HomeScreen`. A dynamic route is `src/app/contacts/[contactId].tsx`.
+
+`UpcomingRoute` (in `src/screens/upcoming/UpcomingRoute.tsx`, never in `src/app/`) fetches data and
+passes it to `UpcomingScreen`'s `state` prop, which keeps the screen easy to test. Read URL params
+there with `useLocalSearchParams<{ contactId: string }>()` (strings, like Next.js `params`).
+Navigate to it from anywhere with `<Link href="/upcoming">` or `router.push('/upcoming')`
+(`useRouter()` from `expo-router`); `href` is typed, so a path with no route file fails typecheck.
 
 ## src/screens/upcoming/UpcomingScreen.spec.tsx
 

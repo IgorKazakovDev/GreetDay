@@ -349,48 +349,58 @@ equivalent of rendering a component with React Testing Library instead of openin
 ### 5.6 `apps/mobile` — the Expo app
 
 Read [`apps/mobile/CLAUDE.md`](../apps/mobile/CLAUDE.md) for the rules (four states per screen,
-tokens only, accessibility). Why React Navigation and not Expo Router:
-[ADR 0002](decisions/0002-react-navigation-instead-of-expo-router.md).
+tokens only, accessibility). Why Expo Router (file-based routes, like the Next.js App Router) and
+not hand-written React Navigation: [ADR 0005](decisions/0005-expo-router-instead-of-react-navigation.md).
 
 **The startup chain**, outermost first:
 
 ```mermaid
 flowchart TD
-  I["index.ts<br/>registerRootComponent(App)"] --> E["src/config/env.ts<br/>validate EXPO_PUBLIC_*"]
-  I --> A["src/App.tsx"]
-  A --> SA["SafeAreaProvider<br/>(notch / home indicator insets)"]
+  I["index.ts"] --> E["src/config/env.ts<br/>validate EXPO_PUBLIC_*"]
+  I --> X["expo-router/entry<br/>(mounts the files in src/app)"]
+  X --> L["src/app/_layout.tsx<br/>(≈ app/layout.tsx)"]
+  L --> SA["SafeAreaProvider<br/>(notch / home indicator insets)"]
   SA --> TP["ThemeProvider<br/>(design tokens via context)"]
-  TP --> NC["NavigationContainer<br/>(≈ BrowserRouter)"]
-  NC --> RN["RootNavigator<br/>(native stack ≈ Routes)"]
-  RN --> H["HomeScreen"]
+  TP --> NT["NavigationThemeProvider<br/>(router colors from tokens)"]
+  NT --> ST["Stack<br/>(history stack ≈ Routes)"]
+  ST --> P["src/app/index.tsx<br/>(route /, ≈ page.tsx)"]
+  P --> H["HomeScreen"]
 ```
 
-| File                                                                                                                                                 | Purpose                                                                                                                                                            |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`index.ts`](../apps/mobile/index.ts)                                                                                                                | Entry point. Imports `env.ts` first (so a bad config fails at startup), then `registerRootComponent(App)` ≈ `createRoot(el).render(<App />)`.                      |
-| [`src/App.tsx`](../apps/mobile/src/App.tsx)                                                                                                          | The provider stack above, plus `<StatusBar>`.                                                                                                                      |
-| [`src/config/env.ts`](../apps/mobile/src/config/env.ts)                                                                                              | The **only** file that reads `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_APP_ENV`. `parseEnv` is pure and strict: no localhost or `http://` in preview/production builds. |
-| [`src/config/env.spec.ts`](../apps/mobile/src/config/env.spec.ts)                                                                                    | Table-driven tests for every accepted and rejected URL/env combination.                                                                                            |
-| [`src/api/client.ts`](../apps/mobile/src/api/client.ts)                                                                                              | `apiGet(path, schema)`, `ApiError`, and the `api` object of typed endpoint helpers.                                                                                |
-| [`src/navigation/RootNavigator.tsx`](../apps/mobile/src/navigation/RootNavigator.tsx)                                                                | Registers screens in a native stack; augments React Navigation's types so `navigation.navigate('X')` is checked.                                                   |
-| [`src/navigation/types.ts`](../apps/mobile/src/navigation/types.ts)                                                                                  | `RootStackParamList` (each route and its params, like typed URL params) and `RootStackScreenProps<'X'>`.                                                           |
-| [`src/navigation/navigationTheme.ts`](../apps/mobile/src/navigation/navigationTheme.ts)                                                              | Maps tokens onto React Navigation's built-in colors (headers, backgrounds).                                                                                        |
-| [`src/theme/ThemeProvider.tsx`](../apps/mobile/src/theme/ThemeProvider.tsx)                                                                          | React context holding `tokens`; `useTheme()` reads it. Exists so dark mode can be added later without touching screens.                                            |
-| [`src/screens/home/HomeScreen.tsx`](../apps/mobile/src/screens/home/HomeScreen.tsx)                                                                  | Placeholder screen. Shows the styling pattern: `StyleSheet.create` for static layout, `theme.*` for every color/size.                                              |
-| [`src/screens/home/HomeScreen.spec.tsx`](../apps/mobile/src/screens/home/HomeScreen.spec.tsx), [`src/App.spec.tsx`](../apps/mobile/src/App.spec.tsx) | React Native Testing Library tests (same API as RTL: `render`, `screen.getByRole`).                                                                                |
-| [`src/test-setup.ts`](../apps/mobile/src/test-setup.ts)                                                                                              | Jest setup: patches Expo's lazy globals, mocks safe-area measurements, sets default `EXPO_PUBLIC_*` values for tests.                                              |
-| [`app.json`](../apps/mobile/app.json)                                                                                                                | Expo app config: name, icons, splash, bundle id, URL scheme `greetday://`. Like a web app manifest.                                                                |
-| [`eas.json`](../apps/mobile/eas.json)                                                                                                                | Build profiles for EAS (Expo's cloud build service): `development`, `preview`, `production`, each with its own `EXPO_PUBLIC_*` values.                             |
-| [`metro.config.js`](../apps/mobile/metro.config.js)                                                                                                  | Metro bundler config; `withNxMetro` lets it see `libs/*`.                                                                                                          |
-| [`.babelrc.js`](../apps/mobile/.babelrc.js)                                                                                                          | `babel-preset-expo`: how Metro and Jest transpile the code.                                                                                                        |
-| [`jest.config.cts`](../apps/mobile/jest.config.cts)                                                                                                  | Jest with the `jest-expo` preset (≈ a jsdom environment, but for React Native) and the `@/` alias.                                                                 |
-| `tsconfig.json`, `tsconfig.app.json`, `tsconfig.spec.json`                                                                                           | TypeScript settings; the `@/*` → `src/*` alias is declared here (and in Jest) and must stay in sync.                                                               |
-| [`assets/`](../apps/mobile/assets/images/)                                                                                                           | App icon, Android adaptive icon, splash image, favicon. Sources in `docs/design/assets/`.                                                                          |
+| File                                                                                                                                                       | Purpose                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`index.ts`](../apps/mobile/index.ts)                                                                                                                      | Entry point. Imports `env.ts` first (so a bad config fails at startup), then `expo-router/entry`, which mounts the routes (≈ the framework entry of a Next.js app).    |
+| [`src/app/_layout.tsx`](../apps/mobile/src/app/_layout.tsx)                                                                                                | Root layout: the provider stack above, `<StatusBar>` and the `<Stack>` that renders the current route. Every file in `src/app/` is a route (≈ `app/` in Next.js).      |
+| [`src/app/index.tsx`](../apps/mobile/src/app/index.tsx)                                                                                                    | Route `/`. Thin: it only renders `HomeScreen`. New screens get a route file here plus a component in `src/screens/`.                                                   |
+| [`src/config/env.ts`](../apps/mobile/src/config/env.ts)                                                                                                    | The **only** file that reads `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_APP_ENV`. `parseEnv` is pure and strict: no localhost or `http://` in preview/production builds.     |
+| [`src/config/env.spec.ts`](../apps/mobile/src/config/env.spec.ts)                                                                                          | Table-driven tests for every accepted and rejected URL/env combination.                                                                                                |
+| [`src/api/client.ts`](../apps/mobile/src/api/client.ts)                                                                                                    | `apiGet(path, schema)`, `ApiError`, and the `api` object of typed endpoint helpers.                                                                                    |
+| [`src/navigation/navigationTheme.ts`](../apps/mobile/src/navigation/navigationTheme.ts)                                                                    | Maps tokens onto the router's built-in colors (headers, backgrounds).                                                                                                  |
+| [`src/theme/ThemeProvider.tsx`](../apps/mobile/src/theme/ThemeProvider.tsx)                                                                                | React context holding `tokens`; `useTheme()` reads it. Exists so dark mode can be added later without touching screens.                                                |
+| [`src/screens/home/HomeScreen.tsx`](../apps/mobile/src/screens/home/HomeScreen.tsx)                                                                        | Placeholder screen. Shows the styling pattern: `StyleSheet.create` for static layout, `theme.*` for every color/size.                                                  |
+| [`src/screens/home/HomeScreen.spec.tsx`](../apps/mobile/src/screens/home/HomeScreen.spec.tsx), [`src/router.spec.tsx`](../apps/mobile/src/router.spec.tsx) | React Native Testing Library tests (same API as RTL: `render`, `screen.getByRole`); `renderRouter` loads the real route files.                                         |
+| [`src/test-setup.ts`](../apps/mobile/src/test-setup.ts)                                                                                                    | Jest setup: patches Expo's lazy globals, mocks safe-area measurements, sets default `EXPO_PUBLIC_*` values for tests.                                                  |
+| [`app.json`](../apps/mobile/app.json)                                                                                                                      | Expo app config: name, icons, splash, bundle id, URL scheme `greetday://`, typed routes on. Like a web app manifest.                                                   |
+| [`eas.json`](../apps/mobile/eas.json)                                                                                                                      | Build profiles for EAS (Expo's cloud build service): `development`, `preview`, `production`, each with its own `EXPO_PUBLIC_*` values.                                 |
+| [`metro.config.js`](../apps/mobile/metro.config.js)                                                                                                        | Metro bundler config; `withNxMetro` lets it see `libs/*`.                                                                                                              |
+| [`.babelrc.js`](../apps/mobile/.babelrc.js)                                                                                                                | `babel-preset-expo`: how Metro and Jest transpile the code.                                                                                                            |
+| [`jest.config.cts`](../apps/mobile/jest.config.cts)                                                                                                        | Jest with the `jest-expo` preset (≈ a jsdom environment, but for React Native) and the `@/` alias.                                                                     |
+| `tsconfig.json`, `tsconfig.app.json`, `tsconfig.spec.json`                                                                                                 | TypeScript settings; the `@/*` → `src/*` alias is declared here (and in Jest) and must stay in sync. Also includes the generated typed-route files (`mobile:typegen`). |
+| [`assets/`](../apps/mobile/assets/images/)                                                                                                                 | App icon, Android adaptive icon, splash image, favicon. Sources in `docs/design/assets/`.                                                                              |
 
 **React Native in web terms.** `<View>` ≈ `<div>`, `<Text>` ≈ `<span>` (all text must be inside
 `<Text>`), styles are JS objects with flexbox by default (`flexDirection: 'column'`), and there is
 no CSS cascade: each component gets its own styles. `SafeAreaView` is the equivalent of padding
 with `env(safe-area-inset-*)`.
+
+**Routing in web terms.** Expo Router is the Next.js App Router for React Native: a file in
+`src/app/` is a route (`index.tsx` ≈ `page.tsx`, `_layout.tsx` ≈ `layout.tsx`, `[id].tsx` is a
+dynamic segment, `(tabs)` a route group), and the URL (`greetday://…`) comes from the file path.
+Underneath it is still React Navigation, so a `<Stack>` is a history stack you push screens onto.
+Links are typed: `<Link href="/upcoming">` fails `typecheck` if no such route file exists. The types
+are generated by the Nx target `mobile:typegen`, which `typecheck` runs first
+([ADR 0005](decisions/0005-expo-router-instead-of-react-navigation.md)). Because every file in
+`src/app/` is a route, screens and tests live in `src/screens/`, never next to the routes.
 
 **How the app reaches your machine in development:** `pnpm nx start mobile` starts Metro, which
 serves a JS bundle. Expo Go on your phone downloads it (like a browser loading a Vite dev server)
@@ -435,7 +445,7 @@ The full table of every variable per environment: [docs/environments.md](environ
 | ------------- | --------------------------------------- | ------------------------------------------------------------------ |
 | `libs/*`      | Vitest                                  | Plain unit tests next to the code (`*.spec.ts`)                    |
 | `apps/api`    | Vitest                                  | `*.integration.spec.ts` with `app.inject()` against a real test DB |
-| `apps/mobile` | Jest (`jest-expo`) + RN Testing Library | Render components and real navigators; query by role/label         |
+| `apps/mobile` | Jest (`jest-expo`) + RN Testing Library | Render components and real routes; query by role/label             |
 
 Why a real database in API tests: mocking SQL hides the bugs that matter (constraints, user
 scoping). `TEST_DATABASE_URL` points at `greetday_test`, a separate database in the same Postgres
@@ -556,7 +566,7 @@ flowchart TD
   S5 --> S6["6. register in app.ts with { prefix: '/friends' }"]
   S6 --> S7["7. apps/mobile/src/api/client.ts<br/>api.friends.list()"]
   S7 --> S8["8. apps/mobile/src/screens/friends/FriendsScreen.tsx<br/>loading / empty / error / success + tests"]
-  S8 --> S9["9. types.ts param list + RootNavigator screen"]
+  S8 --> S9["9. src/app/friends.tsx<br/>route file that renders the screen"]
   S9 --> S10["10. pnpm nx affected -t lint typecheck test"]
 ```
 
@@ -582,7 +592,7 @@ Do these after the README's first-time setup. Each one shows a concept from this
 5. **Break a contract on purpose.** In `libs/contracts/src/health.ts`, rename `uptimeSeconds` to
    `uptime`. Run `pnpm nx affected -t typecheck`: the API route fails to compile. Revert.
 6. **Break a boundary on purpose.** Add `import { createDb } from '@greetday/db';` to
-   `apps/mobile/src/App.tsx` and run `pnpm nx lint mobile`. Revert.
+   `apps/mobile/src/app/index.tsx` and run `pnpm nx lint mobile`. Revert.
 7. **Change a token.** Edit `color.accent` in `libs/design-tokens/tokens.json`, run
    `pnpm nx test design-tokens` (fails: out of sync), then
    `node tools/scripts/sync-design-tokens.mjs` and look at the diff in `src/theme.ts`. Revert both.
@@ -598,26 +608,26 @@ or `/explain Fastify plugins`.
 
 ## 12. Glossary: web ↔ this repo
 
-| Term here                    | Closest web equivalent                                              |
-| ---------------------------- | ------------------------------------------------------------------- |
-| Nx project / target          | A package in a monorepo / an npm script, but cached and graph-aware |
-| `nx affected`                | "Only test what this PR touched"                                    |
-| Expo                         | Next.js for React Native: toolchain, dev server, build service      |
-| Expo Go                      | A browser that loads your dev bundle on the phone                   |
-| Metro                        | Vite/webpack for React Native                                       |
-| EAS Build                    | Vercel's build step, but its output is an `.ipa`/`.apk`             |
-| `EXPO_PUBLIC_*`              | `VITE_*` / `NEXT_PUBLIC_*`                                          |
-| `registerRootComponent`      | `createRoot(el).render(<App />)`                                    |
-| `NavigationContainer`        | `<BrowserRouter>`                                                   |
-| Native stack navigator       | `<Routes>` where each visit pushes a page on a history stack        |
-| `RootStackParamList`         | Typed route params                                                  |
-| `SafeAreaView`               | Padding with `env(safe-area-inset-*)`                               |
-| Design tokens + `useTheme()` | CSS variables / Tailwind theme, read via context                    |
-| Fastify plugin               | A group of route handlers + their shared middleware                 |
-| `app.decorate('db', …)`      | A context provider, but for the server                              |
-| `app.inject()`               | RTL's `render`, but for HTTP requests                               |
-| Zod contract                 | A shared TS type that is also checked at runtime                    |
-| Drizzle                      | A typed query builder (like Prisma, closer to SQL)                  |
-| Migration                    | A commit for the database schema                                    |
-| Connection pool              | A reusable set of open DB connections (like keep-alive)             |
-| ADR                          | A short write-up of "why we chose X" in `docs/decisions/`           |
+| Term here                             | Closest web equivalent                                              |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| Nx project / target                   | A package in a monorepo / an npm script, but cached and graph-aware |
+| `nx affected`                         | "Only test what this PR touched"                                    |
+| Expo                                  | Next.js for React Native: toolchain, dev server, build service      |
+| Expo Go                               | A browser that loads your dev bundle on the phone                   |
+| Metro                                 | Vite/webpack for React Native                                       |
+| EAS Build                             | Vercel's build step, but its output is an `.ipa`/`.apk`             |
+| `EXPO_PUBLIC_*`                       | `VITE_*` / `NEXT_PUBLIC_*`                                          |
+| `expo-router/entry`                   | The framework entry that mounts your `app/` routes (Next.js)        |
+| `src/app/` + `_layout.tsx`            | Next.js `app/` folder and `layout.tsx`                              |
+| Typed `href` / `useLocalSearchParams` | Next.js typed routes / `params`                                     |
+| Stack navigator                       | `<Routes>` where each visit pushes a page on a history stack        |
+| `SafeAreaView`                        | Padding with `env(safe-area-inset-*)`                               |
+| Design tokens + `useTheme()`          | CSS variables / Tailwind theme, read via context                    |
+| Fastify plugin                        | A group of route handlers + their shared middleware                 |
+| `app.decorate('db', …)`               | A context provider, but for the server                              |
+| `app.inject()`                        | RTL's `render`, but for HTTP requests                               |
+| Zod contract                          | A shared TS type that is also checked at runtime                    |
+| Drizzle                               | A typed query builder (like Prisma, closer to SQL)                  |
+| Migration                             | A commit for the database schema                                    |
+| Connection pool                       | A reusable set of open DB connections (like keep-alive)             |
+| ADR                                   | A short write-up of "why we chose X" in `docs/decisions/`           |
