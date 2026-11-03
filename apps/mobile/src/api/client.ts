@@ -1,7 +1,6 @@
 import type { z } from 'zod';
 import { errorResponseSchema, healthResponseSchema } from '@greetday/contracts';
-
-const baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+import { apiUrl } from '@/config/env';
 
 export class ApiError extends Error {
   constructor(
@@ -15,7 +14,7 @@ export class ApiError extends Error {
 
 /** Fetches `path` and validates the JSON body with a schema from @greetday/contracts. */
 export async function apiGet<S extends z.ZodType>(path: string, schema: S): Promise<z.infer<S>> {
-  const res = await fetch(`${baseUrl}${path}`, { headers: { Accept: 'application/json' } });
+  const res = await fetch(`${apiUrl}${path}`, { headers: { Accept: 'application/json' } });
   const json: unknown = await res.json().catch(() => undefined);
   if (!res.ok) {
     const parsed = errorResponseSchema.safeParse(json);

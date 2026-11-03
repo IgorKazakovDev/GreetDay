@@ -3,6 +3,7 @@
 Birthday tracker: an Expo mobile app with a Fastify + PostgreSQL API, in an Nx monorepo with a
 Claude Code agent layer. Product docs: [docs/product](docs/product/). Architecture decisions:
 [docs/decisions](docs/decisions/). Conventions for humans and agents: [CLAUDE.md](CLAUDE.md).
+New here? Start with the architecture tour: [docs/onboarding.md](docs/onboarding.md).
 
 ## Prerequisites
 
@@ -42,6 +43,9 @@ docker compose --profile api up -d --build # optional: run the API in a containe
 
 On a physical phone, set `EXPO_PUBLIC_API_URL` in `.env` to your Mac's LAN IP (e.g. `http://192.168.1.20:3000`)
 and start the API with `HOST=0.0.0.0`.
+
+Every environment variable, where it is set (local, CI, production, EAS builds) and which ones are
+secret: [docs/environments.md](docs/environments.md).
 
 ## Working with Claude Code
 

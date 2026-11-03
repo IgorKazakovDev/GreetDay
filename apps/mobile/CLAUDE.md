@@ -23,6 +23,7 @@ src/screens/<name>/   Screen component + its *.spec.tsx (one folder per design-b
 src/components/       Reusable UI pieces (create when the second screen needs one)
 src/theme/            ThemeProvider + useTheme(); values come from @greetday/design-tokens
 src/api/              API client; responses validated with @greetday/contracts schemas
+src/config/           Build-time config, env.ts: the only place that reads EXPO_PUBLIC_*
 ```
 
 ## Screens and navigation
@@ -61,8 +62,10 @@ Each state gets a test.
 
 - Call the API through `src/api/client.ts` (`apiGet(path, schema)`), using schemas from
   `@greetday/contracts`. Never hand-write response types.
-- `EXPO_PUBLIC_API_URL` sets the base URL. `EXPO_PUBLIC_*` values ship in the app bundle, so they
-  must never hold secrets.
+- `EXPO_PUBLIC_API_URL` sets the base URL and `EXPO_PUBLIC_APP_ENV` the build environment; both are
+  read only in `src/config/env.ts` (import `apiUrl` / `appEnv` from `@/config/env`). Values per EAS
+  profile: [docs/environments.md](../../docs/environments.md). `EXPO_PUBLIC_*` values ship in the
+  app bundle, so they must never hold secrets.
 - Business rules (age, next birthday, Feb 29) live in `@greetday/domain`, not in components.
 - Never import `@greetday/db` (lint fails).
 
