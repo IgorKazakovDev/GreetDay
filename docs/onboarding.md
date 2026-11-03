@@ -227,9 +227,10 @@ Step by step, with the files:
 9. **[`apps/mobile/src/config/env.ts`](../apps/mobile/src/config/env.ts)** provides `apiUrl`, read
    from `EXPO_PUBLIC_API_URL` at build time.
 10. **[`apps/mobile/src/api/client.ts`](../apps/mobile/src/api/client.ts)** — `apiGet(path, schema)`
-    does the `fetch`, and on success runs `schema.parse(json)`. On a non-2xx response it parses the
-    shared error shape and throws an `ApiError(status, code, message)`. `api.health` is the first
-    typed helper; every future endpoint gets one next to it.
+    (and `apiPost`/`apiPatch`/`apiPut`/`apiDelete`) does the `fetch`, and on success validates the
+    body with the schema. Any failure (error response, no network, timeout, unexpected body) is
+    thrown as an `ApiError` with a typed `code`. `api.health` is the first typed helper; every
+    future endpoint gets one next to it.
 
 The key idea: **the contract is checked on both ends at runtime**, not just trusted as a TypeScript
 type. If the server ever sends something unexpected, the app fails loudly at the boundary instead of
@@ -322,20 +323,20 @@ Native has no CSS, so tokens become plain numbers and strings that screens read 
 Read [`apps/api/CLAUDE.md`](../apps/api/CLAUDE.md) for the rules (contracts, user scoping, errors,
 logging).
 
-| File                                                                                                       | Purpose                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| [`src/main.ts`](../apps/api/src/main.ts)                                                                   | Entry: load env → build app → listen; graceful shutdown on signals.                                                                       |
-| [`src/env.ts`](../apps/api/src/env.ts)                                                                     | Zod schema for every env var the API reads, with defaults. New variables go here and in `.env.example`.                                   |
-| [`src/env.spec.ts`](../apps/api/src/env.spec.ts)                                                           | Unit test: defaults apply; missing `DATABASE_URL` throws.                                                                                 |
-| [`src/app.ts`](../apps/api/src/app.ts)                                                                     | `buildApp(config)`: logger (pretty in dev, JSON in prod, `authorization`/`cookie` redacted), Zod compilers, plugins, routes.              |
-| [`src/plugins/db.ts`](../apps/api/src/plugins/db.ts)                                                       | Opens the pool once per app and exposes it as `app.db`.                                                                                   |
-| [`src/plugins/error-handler.ts`](../apps/api/src/plugins/error-handler.ts)                                 | Converts every error (validation, 4xx, 5xx, unknown route) into the shared `ErrorResponse`. 5xx details go to logs only.                  |
-| [`src/routes/health/index.ts`](../apps/api/src/routes/health/index.ts)                                     | `GET /health`. The template for every future feature folder.                                                                              |
-| [`src/routes/health/health.integration.spec.ts`](../apps/api/src/routes/health/health.integration.spec.ts) | Integration tests against a real test DB: 200 when healthy, 503 when the DB is unreachable, shared 404 shape.                             |
-| [`test/global-setup.ts`](../apps/api/test/global-setup.ts)                                                 | Runs once before API tests: checks `TEST_DATABASE_URL` is local, then migrates it.                                                        |
-| [`test/helpers.ts`](../apps/api/test/helpers.ts)                                                           | `buildTestApp()`: the app wired to the test DB with logs silenced.                                                                        |
-| [`vitest.config.mts`](../apps/api/vitest.config.mts)                                                       | Vitest for Node, with the global setup above.                                                                                             |
-| [`package.json`](../apps/api/package.json)                                                                 | Runtime deps + Nx targets: `build` (esbuild → `dist/main.js`, ESM), `serve` (build + run + rebuild on change), `prune*` (for deployment). |
+| File                                                                                                       | Purpose                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`src/main.ts`](../apps/api/src/main.ts)                                                                   | Entry: load env → build app → listen; graceful shutdown on signals.                                                                             |
+| [`src/env.ts`](../apps/api/src/env.ts)                                                                     | Zod schema for every env var the API reads, with defaults. New variables go here and in `.env.example`.                                         |
+| [`src/env.spec.ts`](../apps/api/src/env.spec.ts)                                                           | Unit test: defaults apply; missing `DATABASE_URL` throws.                                                                                       |
+| [`src/app.ts`](../apps/api/src/app.ts)                                                                     | `buildApp(config)`: logger (pretty in dev, JSON in prod, `authorization`/`cookie` redacted), Zod compilers, plugins, routes.                    |
+| [`src/plugins/db.ts`](../apps/api/src/plugins/db.ts)                                                       | Opens the pool once per app and exposes it as `app.db`.                                                                                         |
+| [`src/plugins/error-handler.ts`](../apps/api/src/plugins/error-handler.ts)                                 | Plugs `toErrorResponse` (`src/errors.ts`) into Fastify: every error becomes `ErrorResponse` with a catalogue code. 5xx details go to logs only. |
+| [`src/routes/health/index.ts`](../apps/api/src/routes/health/index.ts)                                     | `GET /health`. The template for every future feature folder.                                                                                    |
+| [`src/routes/health/health.integration.spec.ts`](../apps/api/src/routes/health/health.integration.spec.ts) | Integration tests against a real test DB: 200 when healthy, 503 when the DB is unreachable, shared 404 shape.                                   |
+| [`test/global-setup.ts`](../apps/api/test/global-setup.ts)                                                 | Runs once before API tests: checks `TEST_DATABASE_URL` is local, then migrates it.                                                              |
+| [`test/helpers.ts`](../apps/api/test/helpers.ts)                                                           | `buildTestApp()`: the app wired to the test DB with logs silenced.                                                                              |
+| [`vitest.config.mts`](../apps/api/vitest.config.mts)                                                       | Vitest for Node, with the global setup above.                                                                                                   |
+| [`package.json`](../apps/api/package.json)                                                                 | Runtime deps + Nx targets: `build` (esbuild → `dist/main.js`, ESM), `serve` (build + run + rebuild on change), `prune*` (for deployment).       |
 
 **Fastify in web terms.** A Fastify _plugin_ is a function that receives the app and adds things to
 it: routes, hooks, decorations. It's like a group of Next.js route handlers plus the middleware they
@@ -374,7 +375,7 @@ flowchart TD
 | [`src/app/index.tsx`](../apps/mobile/src/app/index.tsx)                                                                                                    | Route `/`. Thin: it only renders `HomeScreen`. New screens get a route file here plus a component in `src/screens/`.                                                   |
 | [`src/config/env.ts`](../apps/mobile/src/config/env.ts)                                                                                                    | The **only** file that reads `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_APP_ENV`. `parseEnv` is pure and strict: no localhost or `http://` in preview/production builds.     |
 | [`src/config/env.spec.ts`](../apps/mobile/src/config/env.spec.ts)                                                                                          | Table-driven tests for every accepted and rejected URL/env combination.                                                                                                |
-| [`src/api/client.ts`](../apps/mobile/src/api/client.ts)                                                                                                    | `apiGet(path, schema)`, `ApiError`, and the `api` object of typed endpoint helpers.                                                                                    |
+| [`src/api/client.ts`](../apps/mobile/src/api/client.ts)                                                                                                    | `apiGet`/`apiPost`/`apiPatch`/`apiPut`/`apiDelete`, and the `api` object of typed endpoint helpers. Errors and `messageFor` live in `errors.ts`.                       |
 | [`src/navigation/navigationTheme.ts`](../apps/mobile/src/navigation/navigationTheme.ts)                                                                    | Maps tokens onto the router's built-in colors (headers, backgrounds).                                                                                                  |
 | [`src/theme/ThemeProvider.tsx`](../apps/mobile/src/theme/ThemeProvider.tsx)                                                                                | React context holding `tokens`; `useTheme()` reads it. Exists so dark mode can be added later without touching screens.                                                |
 | [`src/screens/home/HomeScreen.tsx`](../apps/mobile/src/screens/home/HomeScreen.tsx)                                                                        | Placeholder screen. Shows the styling pattern: `StyleSheet.create` for static layout, `theme.*` for every color/size.                                                  |
@@ -414,17 +415,27 @@ and hot-reloads on save. Release builds instead bundle the JS on EAS and ship it
 
 ```mermaid
 flowchart LR
-  T["throw / validation failure<br/>in a route"] --> EH["error-handler.ts"]
+  T["throw / validation failure<br/>in a route"] --> EH["toErrorResponse<br/>(src/errors.ts)"]
+  FW["bad URL / param too long<br/>(frameworkErrors)"] --> EH
   EH -- "Zod validation" --> V["400 VALIDATION_ERROR + details"]
-  EH -- "statusCode < 500" --> C["4xx with error.code"]
+  EH -- "AppError(code)" --> A["statusFor[code] + code"]
+  EH -- "other 4xx" --> C["code by status<br/>(403 answered as 404)"]
   EH -- "≥ 500 or unknown" --> I["500 INTERNAL_ERROR<br/>(details only in logs)"]
   NF["unknown route"] --> N["404 NOT_FOUND"]
-  V & C & I & N --> R["{ error: { code, message, details? } }"]
-  R --> AC["client.ts → ApiError(status, code, message)"]
+  V & A & C & I & N --> R["{ error: { code, message, details? } }"]
+  R --> AC["client.ts → ApiError { status, code }"]
+  NET["no network / timeout"] --> AC
 ```
 
-Screens show friendly copy based on `ApiError.code`, never the raw server message. How offline and
-failed actions look in the UI: [ADR 0003](decisions/0003-offline-pattern.md).
+- Every `code` comes from the catalogue in
+  [`libs/contracts/src/error-codes.ts`](../libs/contracts/src/error-codes.ts); the API sends a fixed
+  message per code, never the thrown text. Rules for adding a code: [apps/api/CLAUDE.md](../apps/api/CLAUDE.md).
+- The app adds client-only codes: `NETWORK_ERROR` (no answer or timeout) and `UNKNOWN`. An unknown
+  server code falls back by status (401 → `UNAUTHENTICATED`, 404 → `NOT_FOUND`, …), so older app
+  builds still recognise a signed-out user.
+- Screens show `messageFor(error)` from `apps/mobile/src/api/errors.ts`, never `error.message` or the
+  server's text (`serverMessage`, for logs only). How offline and failed actions look in the UI:
+  [ADR 0003](decisions/0003-offline-pattern.md).
 
 ### 6.2 Configuration and environment variables
 
