@@ -17,9 +17,14 @@ Read `apps/mobile/CLAUDE.md` and `.claude/rules/mobile-ui.md`. Templates: [templ
 3. **Files:**
    - `src/screens/<name>/<Name>Screen.tsx`, starting with `// <ID> <Name>`
    - `src/screens/<name>/<Name>Screen.spec.tsx`
-   - The route: `src/app/<route>.tsx` that default-exports the screen, or its `<Name>Route` container when the
-     screen takes a `state` prop (`export default <Name>Screen;`, like `src/app/index.tsx`). No other registration; the file is the route. Keep tests and
-     helpers out of `src/app/`. Dynamic segment (`[contactId].tsx`) → `useLocalSearchParams`.
+   - `src/screens/<name>/<Name>Route.tsx` when the screen takes a `state` prop: the container that
+     fetches data and renders the screen
+   - The route: `src/app/<route>.tsx`. A screen that takes no props is default-exported directly
+     (`export default HomeScreen;`, like `src/app/index.tsx`). Otherwise
+     `export { <Name>Route as default } from '@/screens/<name>/<Name>Route';` (Expo Router doesn't
+     type-check route props, so exporting a screen that needs props would crash). No other
+     registration; the file is the route. Keep tests and helpers out of `src/app/`. Dynamic segment
+     (`[contactId].tsx`) → `useLocalSearchParams`.
 4. **States:** loading, empty, error (with retry), success. All copy from the brief.
 5. **Styling:** `useTheme()` tokens only. Lists use `FlatList`/`SectionList`.
 6. **Accessibility:** header role on the title, labels on every touchable and icon, 44 pt

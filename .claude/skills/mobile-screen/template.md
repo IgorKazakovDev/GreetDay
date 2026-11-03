@@ -71,8 +71,8 @@ export { UpcomingRoute as default } from '@/screens/upcoming/UpcomingRoute';
 ```
 
 The file name is the whole registration: no param list and no navigator to edit (like adding
-`app/upcoming/page.tsx` in Next.js). A screen that needs no data of its own can export itself
-instead, as `src/app/index.tsx` does with `HomeScreen`. A dynamic route is `src/app/contacts/[contactId].tsx`.
+`app/upcoming/page.tsx` in Next.js). A screen that takes no props can export itself
+instead (Expo Router doesn't type-check route props, so never export one that needs props), as `src/app/index.tsx` does with `HomeScreen`. A dynamic route is `src/app/contacts/[contactId].tsx`.
 
 `UpcomingRoute` (in `src/screens/upcoming/UpcomingRoute.tsx`, never in `src/app/`) fetches data and
 passes it to `UpcomingScreen`'s `state` prop, which keeps the screen easy to test. Read URL params

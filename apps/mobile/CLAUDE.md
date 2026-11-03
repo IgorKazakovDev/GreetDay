@@ -39,8 +39,12 @@ src/config/           Build-time config, env.ts: the only place that reads EXPO_
   `src/app/upcoming.tsx` + `src/screens/upcoming/UpcomingScreen.tsx`. Put the ID in a one-line comment at the
   top of the screen file (`// S-03 Upcoming`).
 - To add a screen: create `src/screens/<name>/<Name>Screen.tsx`, then a route file in `src/app/`
-  that default-exports it (`export default UpcomingScreen;`, see `src/app/index.tsx`). A new tab or
-  nested stack is a folder with its own `_layout.tsx`.
+  that default-exports it. Do that directly only when the screen takes no props, like `HomeScreen`
+  in `src/app/index.tsx` (`export default HomeScreen;`). A screen with a `state` prop gets a
+  `src/screens/<name>/<Name>Route.tsx` container that fetches data, and the route file re-exports it:
+  `export { UpcomingRoute as default } from '@/screens/upcoming/UpcomingRoute';`. Expo Router doesn't
+  type-check route component props, so a screen that needs props would crash if exported as is. A new
+  tab or nested stack is a folder with its own `_layout.tsx`.
 - Navigate with the typed `href`: `<Link href="/upcoming">` or `router.push('/upcoming')`
   (`useRouter()` from `expo-router`). A path that has no route file fails `pnpm nx typecheck mobile`.
 - Params come from the URL, as in Next.js: `useLocalSearchParams<{ contactId: string }>()` in
@@ -87,8 +91,16 @@ Each state gets a test.
   `src/test-setup.ts` (otherwise `SafeAreaProvider` renders nothing in Jest).
 - Typed routes need generated files (`.expo/types/router.d.ts`, `expo-env.d.ts`, git-ignored). The
   cached Nx target `mobile:typegen` makes them and `typecheck` depends on it, so just run
-  `pnpm nx typecheck mobile`. `tsconfig.json` must keep them in `include` (else `href` degrades to
-  `string`) and keep the `nx.sync.ignoredReferences` entry (else `nx sync:check` flip-flops).
+  `pnpm nx typecheck mobile`. `tsconfig.app.json` (what typecheck builds) must keep them in its
+  `include`, else `href` degrades to `string`. `tsconfig.json` lists them too, only so
+  `expo customize` / `expo start` leave it alone. `src/navigation/typedRoutes.check.ts` is a guard:
+  it fails typecheck if `href` stops being typed (it is not a test and not a route; no tests or
+  helpers in `src/app/` still holds).
+- `tsconfig.json` lists the workspace libs in `nx.sync.ignoredReferences`, because Nx's TypeScript
+  sync would otherwise flip-flop them depending on whether the generated files exist. When mobile
+  gains a new workspace dependency, add its `../../libs/<name>` path to both `references` and
+  `nx.sync.ignoredReferences` in `apps/mobile/tsconfig.json`, or `nx sync:check` fails on a clean CI
+  checkout.
 - Navigation packages (`expo-router`, `react-native-screens`, `react-native-safe-area-context`) come
   from `pnpm exec expo install`, so they match the SDK.
 - Expo Go only runs the latest SDK. After an Expo upgrade, run `pnpm exec expo install --check`.
