@@ -43,10 +43,34 @@ Use the `/api-endpoint` skill.
 
 ## Errors
 
-- All errors leave as `ErrorResponse`: `{ error: { code, message, details? } }`. See `src/plugins/error-handler.ts`.
-- Throw errors with `statusCode` and an UPPER_SNAKE `code` (e.g. `CONTACT_NOT_FOUND`) for 4xx.
-- 5xx: the client gets a generic message and the details go to the log.
-- Validation failures become `400 VALIDATION_ERROR` automatically.
+- All errors leave as `ErrorResponse`: `{ error: { code, message, details? } }`, and `code` is always
+  one of `errorCodes` in [`libs/contracts/src/error-codes.ts`](../../libs/contracts/src/error-codes.ts).
+  The mapping lives in one function, `toErrorResponse` in `src/errors.ts`, plugged in by `src/plugins/error-handler.ts`.
+- In a route, `throw new AppError(errorCodes.NOT_FOUND)`. The code is typed, so a typo fails typecheck,
+  and the HTTP status comes from `statusFor` in `src/errors.ts` (one canonical status per code, so
+  "400 NOT_FOUND" can't happen). Only an `AppError` can choose a code; any other thrown error is
+  mapped by its status alone.
+- `new AppError(code, logMessage?)`: the optional log message is written to the log at `info`
+  (`error` for `INTERNAL_ERROR`) together with the code. The client gets a fixed message per code,
+  never the thrown text. **Log messages hold ids only, never personal data** (names, birthdays,
+  usernames); see `.claude/rules/security.md`.
+- Custom Zod error messages and `.refine` messages must not interpolate the submitted value: validation
+  `details` are sent to the client.
+- Fastify's own errors (415, 413, bad JSON) map by status to `BAD_REQUEST`; their `FST_ERR_*` codes never leave the API.
+  Errors raised before routing (malformed `%`-encoded param, param over `maxParamLength`) skip
+  `setErrorHandler`, so `buildApp` also passes `frameworkErrors` to `Fastify(...)`; keep it there.
+- Validation failures become `400 VALIDATION_ERROR` automatically. 5xx becomes a generic `500 INTERNAL_ERROR`.
+- Another user's resource is `404`, never `403`. There is no `FORBIDDEN` code; a stray 403 is answered as 404 and logged.
+
+### When to add a new error code
+
+- Add one only when the app should **behave differently** for it (show different copy, navigate, retry,
+  refresh a token). If the client would treat it like an existing code, reuse that code.
+- Name it `SCREAMING_SNAKE`. Feature codes are `<THING>_<PROBLEM>`, e.g. `CONTACT_NOT_FOUND`, `FRIEND_NOT_FOUND`.
+- Contracts first: add it to `errorCodes` in `libs/contracts`, then add its fixed message to `messages`
+  and its status to `statusFor` in `src/errors.ts` (typecheck fails until you do), then throw it with `AppError`, then add the app's copy.
+- Codes are a public contract: never rename one or reuse it for a different meaning. Add a new code and stop sending the old one.
+- Keep the status honest in `statusFor`: a "not found" code is 404, and never a 403 for another user's data.
 
 ## Logging
 
