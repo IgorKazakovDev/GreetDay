@@ -1,6 +1,6 @@
 # apps/mobile: Expo app
 
-Expo SDK 58, React Native 0.88, React Navigation 7 (native stack), TypeScript strict. Rules for UI work load from
+Expo SDK 58, React Native 0.88, Expo Router (file-based routes, typed `href`; React Navigation underneath), TypeScript strict. Rules for UI work load from
 `.claude/rules/mobile-ui.md`. Design source: [design brief](../../docs/product/design-brief.md) + Penpot.
 
 ## Commands
@@ -16,10 +16,11 @@ cd apps/mobile && pnpm exec expo install <pkg>   # add a dependency at the SDK-m
 ## Layout
 
 ```
-index.ts              Entry point: registerRootComponent(App)
-src/App.tsx           Providers: SafeAreaProvider > ThemeProvider > NavigationContainer
-src/navigation/       RootNavigator (native stack), types.ts (param lists), navigationTheme.ts
+index.ts              Entry point: imports ./src/config/env (validation first), then expo-router/entry
+src/app/              Routes: every file here is a route. _layout.tsx = root layout (providers + <Stack>)
+src/navigation/       navigationTheme.ts (our tokens mapped onto the router's colors)
 src/screens/<name>/   Screen component + its *.spec.tsx (one folder per design-brief screen)
+src/router.spec.tsx   Routing tests (renderRouter over src/app); route files get no tests of their own
 src/components/       Reusable UI pieces (create when the second screen needs one)
 src/theme/            ThemeProvider + useTheme(); values come from @greetday/design-tokens
 src/api/              API client; responses validated with @greetday/contracts schemas
@@ -28,17 +29,25 @@ src/config/           Build-time config, env.ts: the only place that reads EXPO_
 
 ## Screens and navigation
 
-- Navigation is **React Navigation 7 with the component ("dynamic") API**: navigators are components
-  (`<RootStack.Navigator>`, `<RootStack.Screen>`) registered in `src/navigation/RootNavigator.tsx`.
-- Screen IDs from the design brief map to route names and folders: `S-03 Upcoming` → route
-  `Upcoming` + `src/screens/upcoming/UpcomingScreen.tsx`. Put the ID in a one-line comment at the
+- Navigation is **Expo Router**, which works like the Next.js App Router: a file in `src/app/` is a
+  route (`_layout.tsx` ≈ `layout.tsx`, `index.tsx` ≈ `page.tsx`, `[id].tsx` = dynamic segment,
+  `(tabs)` = route group that adds no URL segment). Deep links (`greetday://…`) come from the file
+  tree. Decision and reasons: [ADR 0005](../../docs/decisions/0005-expo-router-instead-of-react-navigation.md).
+- **Every file in `src/app/` is a route**, so keep it thin: a route file only re-exports or renders
+  a screen from `src/screens/`. Components, helpers and `*.spec.tsx` never go in `src/app/`.
+- Screen IDs from the design brief map to routes and folders: `S-03 Upcoming` → route
+  `src/app/upcoming.tsx` + `src/screens/upcoming/UpcomingScreen.tsx`. Put the ID in a one-line comment at the
   top of the screen file (`// S-03 Upcoming`).
-- To add a screen: add its params to `RootStackParamList` in `src/navigation/types.ts`
-  (`Upcoming: undefined`, or `ContactDetail: { contactId: string }`), then add a `<RootStack.Screen>`.
-- Type screen props with `RootStackScreenProps<'Upcoming'>`. `useNavigation()` is typed globally
-  (module augmentation in `RootNavigator.tsx`), so `navigation.navigate('Upcoming')` is checked.
-- Pass ids in params, not whole objects; the screen loads its own data.
-- A new navigator (tabs, a nested stack) gets its own file in `src/navigation/` and its own param list.
+- To add a screen: create `src/screens/<name>/<Name>Screen.tsx`, then a route file in `src/app/`
+  that default-exports it (`export default UpcomingScreen;`, see `src/app/index.tsx`). A new tab or
+  nested stack is a folder with its own `_layout.tsx`.
+- Navigate with the typed `href`: `<Link href="/upcoming">` or `router.push('/upcoming')`
+  (`useRouter()` from `expo-router`). A path that has no route file fails `pnpm nx typecheck mobile`.
+- Params come from the URL, as in Next.js: `useLocalSearchParams<{ contactId: string }>()` in
+  `src/app/contacts/[contactId].tsx` (values are strings). Pass ids in params, not whole objects; the
+  screen loads its own data.
+- Import router APIs (`Stack`, `Tabs`, `Link`, `useRouter`, `ThemeProvider`, `Theme`) from
+  `expo-router`. It bundles React Navigation, so there are no direct `@react-navigation/*` deps.
 - Use the `/mobile-screen` skill (or its checklist) for every new screen.
 
 ## Every screen must handle
@@ -73,8 +82,13 @@ Each state gets a test.
 
 - Path alias `@/*` → `src/*` is declared in `tsconfig.json` (Metro reads it there) and in the
   app/spec tsconfigs and `jest.config.cts`. Keep them in sync.
-- Tests render real navigators. `react-native-safe-area-context` is mocked globally in
+- Tests of routing render the real route files with `renderRouter` from `expo-router/testing-library`
+  (see `src/router.spec.tsx`). `react-native-safe-area-context` is mocked globally in
   `src/test-setup.ts` (otherwise `SafeAreaProvider` renders nothing in Jest).
-- Navigation packages come from `pnpm exec expo install`, so `react-native-screens` and
-  `react-native-safe-area-context` match the SDK.
+- Typed routes need generated files (`.expo/types/router.d.ts`, `expo-env.d.ts`, git-ignored). The
+  cached Nx target `mobile:typegen` makes them and `typecheck` depends on it, so just run
+  `pnpm nx typecheck mobile`. `tsconfig.json` must keep them in `include` (else `href` degrades to
+  `string`) and keep the `nx.sync.ignoredReferences` entry (else `nx sync:check` flip-flops).
+- Navigation packages (`expo-router`, `react-native-screens`, `react-native-safe-area-context`) come
+  from `pnpm exec expo install`, so they match the SDK.
 - Expo Go only runs the latest SDK. After an Expo upgrade, run `pnpm exec expo install --check`.
