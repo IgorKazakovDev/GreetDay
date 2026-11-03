@@ -3,6 +3,7 @@
 Birthday tracker: an Expo mobile app with a Fastify + PostgreSQL API, in an Nx monorepo with a
 Claude Code agent layer. Product docs: [docs/product](docs/product/). Architecture decisions:
 [docs/decisions](docs/decisions/). Conventions for humans and agents: [CLAUDE.md](CLAUDE.md).
+New here? Start with the architecture tour: [docs/onboarding.md](docs/onboarding.md).
 
 ## Prerequisites
 
