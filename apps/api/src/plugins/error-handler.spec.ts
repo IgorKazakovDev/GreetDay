@@ -5,7 +5,12 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { errorCodes, errorResponseSchema, isKnownErrorCode } from '@greetday/contracts';
+import {
+  errorCodes,
+  errorResponseSchema,
+  isKnownErrorCode,
+  type ErrorCode,
+} from '@greetday/contracts';
 import { AppError } from '../errors';
 import { errorHandlerPlugin } from './error-handler';
 
@@ -24,12 +29,7 @@ async function buildErrorApp() {
   }));
   app.get('/app-error/:status', async (request) => {
     const { status } = request.params as { status: string };
-    const codes = {
-      401: errorCodes.UNAUTHENTICATED,
-      404: errorCodes.NOT_FOUND,
-      429: errorCodes.RATE_LIMITED,
-    } as const;
-    throw new AppError(Number(status), codes[Number(status) as keyof typeof codes]);
+    throw new AppError(status as ErrorCode, 'contact 7 missing');
   });
   app.get('/forbidden', async () => {
     throw Object.assign(new Error('not yours'), { statusCode: 403 });
@@ -94,14 +94,18 @@ describe('error handler', () => {
   });
 
   it.each([
-    [401, errorCodes.UNAUTHENTICATED],
-    [404, errorCodes.NOT_FOUND],
-    [429, errorCodes.RATE_LIMITED],
-  ])('keeps status %i and its catalogue code when an AppError is thrown', async (status, code) => {
-    const res = await app.inject({ method: 'GET', url: `/app-error/${status}` });
+    [errorCodes.BAD_REQUEST, 400],
+    [errorCodes.UNAUTHENTICATED, 401],
+    [errorCodes.NOT_FOUND, 404],
+    [errorCodes.RATE_LIMITED, 429],
+    [errorCodes.INTERNAL_ERROR, 500],
+  ])('answers an AppError(%s) with its canonical status %i', async (code, status) => {
+    const res = await app.inject({ method: 'GET', url: `/app-error/${code}` });
 
     expect(res.statusCode).toBe(status);
-    expect(expectCatalogueError(res).error.code).toBe(code);
+    const body = expectCatalogueError(res);
+    expect(body.error.code).toBe(code);
+    expect(res.body).not.toContain('contact 7 missing');
   });
 
   it('returns 404 NOT_FOUND for an unknown route', async () => {

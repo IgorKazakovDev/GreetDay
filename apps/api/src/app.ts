@@ -6,7 +6,7 @@ import {
 } from 'fastify-type-provider-zod';
 import type { Env } from './env';
 import { dbPlugin } from './plugins/db';
-import { errorHandlerPlugin } from './plugins/error-handler';
+import { errorHandlerPlugin, frameworkErrorHandler } from './plugins/error-handler';
 import { healthRoutes } from './routes/health/index';
 
 export type AppConfig = Pick<Env, 'NODE_ENV' | 'LOG_LEVEL' | 'DATABASE_URL'>;
@@ -31,7 +31,11 @@ function loggerOptions(config: AppConfig): FastifyServerOptions['logger'] {
  * Register one plugin per feature under src/routes/<feature>/.
  */
 export async function buildApp(config: AppConfig) {
-  const app = Fastify({ logger: loggerOptions(config) }).withTypeProvider<ZodTypeProvider>();
+  const app = Fastify({
+    logger: loggerOptions(config),
+    // Bad URL / param too long / async constraint errors skip setErrorHandler; see the handler.
+    frameworkErrors: frameworkErrorHandler,
+  }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);

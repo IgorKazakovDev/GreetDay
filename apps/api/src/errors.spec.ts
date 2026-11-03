@@ -1,5 +1,5 @@
 import { errorCodes, errorResponseSchema, isKnownErrorCode } from '@greetday/contracts';
-import { AppError, toErrorResponse } from './errors';
+import { AppError, statusFor, toErrorResponse } from './errors';
 
 describe('toErrorResponse', () => {
   const fastifyError = (statusCode: number, code: string) =>
@@ -21,8 +21,22 @@ describe('toErrorResponse', () => {
     ['a string', 'oops', 500, errorCodes.INTERNAL_ERROR],
     ['null', null, 500, errorCodes.INTERNAL_ERROR],
     ['undefined', undefined, 500, errorCodes.INTERNAL_ERROR],
-    ['an AppError', new AppError(404, errorCodes.NOT_FOUND), 404, errorCodes.NOT_FOUND],
-    ['a known code on a plain 4xx', { statusCode: 401, code: 'RATE_LIMITED' }, 401, 'RATE_LIMITED'],
+    ['an AppError', new AppError(errorCodes.NOT_FOUND), 404, errorCodes.NOT_FOUND],
+    ['an AppError RATE_LIMITED', new AppError(errorCodes.RATE_LIMITED), 429, 'RATE_LIMITED'],
+    ['an AppError INTERNAL_ERROR', new AppError(errorCodes.INTERNAL_ERROR), 500, 'INTERNAL_ERROR'],
+    // Only an AppError may choose a code; a lookalike's code is ignored and the status decides.
+    [
+      'a lookalike with a catalogue code',
+      { statusCode: 401, code: 'RATE_LIMITED' },
+      401,
+      'UNAUTHENTICATED',
+    ],
+    [
+      'a lookalike with a mismatched code',
+      { statusCode: 400, code: 'NOT_FOUND' },
+      400,
+      'BAD_REQUEST',
+    ],
   ])('maps %s to %i %s', (_name, thrown, status, code) => {
     const result = toErrorResponse(thrown);
 
@@ -36,6 +50,21 @@ describe('toErrorResponse', () => {
     const { body } = toErrorResponse(fastifyError(415, 'FST_ERR_CTP_INVALID_MEDIA_TYPE'));
 
     expect(JSON.stringify(body)).not.toMatch(/Fastify|FST_ERR/);
+  });
+
+  it('gives every AppError the status from statusFor', () => {
+    for (const code of Object.values(errorCodes)) {
+      expect(new AppError(code).statusCode).toBe(statusFor[code]);
+      expect(toErrorResponse(new AppError(code)).statusCode).toBe(statusFor[code]);
+    }
+  });
+
+  it('keeps the AppError log message out of the response and asks for it to be logged', () => {
+    const result = toErrorResponse(new AppError(errorCodes.NOT_FOUND, 'contact 7 not found'));
+
+    expect(JSON.stringify(result.body)).not.toContain('contact 7');
+    expect(result.log).toBe('info');
+    expect(toErrorResponse(new AppError(errorCodes.INTERNAL_ERROR)).log).toBe('error');
   });
 
   it('asks for the 403-as-404 remap and unexpected errors to be logged', () => {
