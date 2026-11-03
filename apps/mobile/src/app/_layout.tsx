@@ -7,7 +7,9 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
 /**
  * Root layout, rendered around every route (like app/layout.tsx in Next.js). Providers from the
  * outside in:
- * - SafeAreaProvider: measures the notch and home indicator so screens can avoid them.
+ * - SafeAreaProvider: measures the notch and home indicator so screens can avoid them. Expo Router
+ *   already mounts one above this layout; ours is kept deliberately (explicit provider tree, as the
+ *   story specifies). Nesting them is harmless.
  * - ThemeProvider: our design tokens, read with useTheme().
  * - NavigationThemeProvider: Expo Router's own colors (screen background, headers), from our tokens.
  *   Aliased because both providers are called ThemeProvider.

@@ -20,6 +20,8 @@
     }
   ],
   "compilerOptions": {
+    "outDir": "out-tsc/root",
+    "tsBuildInfoFile": "out-tsc/root/tsconfig.tsbuildinfo",
     "paths": {
       "@/*": ["./src/*"]
     }

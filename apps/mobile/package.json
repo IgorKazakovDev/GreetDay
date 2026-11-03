@@ -24,7 +24,12 @@
         "inputs": [
           "{projectRoot}/src/app/**/*",
           "{projectRoot}/app.json",
-          "{projectRoot}/package.json"
+          "{projectRoot}/package.json",
+          {
+            "externalDependencies": [
+              "expo-router"
+            ]
+          }
         ],
         "outputs": [
           "{projectRoot}/.expo/types",
@@ -33,6 +38,7 @@
       },
       "typecheck": {
         "dependsOn": [
+          "^typecheck",
           "typegen"
         ]
       }
