@@ -1,7 +1,7 @@
-import { DefaultTheme, type Theme } from '@react-navigation/native';
+import { DefaultTheme, type Theme } from 'expo-router';
 import { tokens } from '@greetday/design-tokens';
 
-/** React Navigation's own colors (screen background, headers, tab bars), mapped from our tokens. */
+/** Expo Router's (React Navigation's) own colors (screen background, headers, tab bars), mapped from our tokens. */
 export const navigationTheme: Theme = {
   ...DefaultTheme,
   colors: {
