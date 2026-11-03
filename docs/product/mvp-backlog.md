@@ -6,7 +6,8 @@ product owner's review: every open question of the first version was answered (s
 decisions" at the end), design moved first (milestone **M0 Design**, epic E10) and the public store
 release was added (milestone **M5 Public release**, epic E11). Each `### [ID] Title` section becomes
 one GitHub issue via `/backlog-to-issues` (parser rules: `.claude/skills/backlog-to-issues/format.md`).
-Everything else in this file is ignored by the script.
+Everything else in this file is ignored by the script. Updated 2026-11-03: E0-S6 added (switch to
+Expo Router, reversing ADR 0002), and E1-S2, E2-S3-T6 and E7-S5 reworded for Expo Router.
 
 Conventions used in this file:
 
@@ -37,14 +38,14 @@ Verified in the repo on 2026-10-20 (root `CLAUDE.md`, `apps/`, `libs/`, `.github
 | AIP-4  | Drizzle setup, migration pipeline (`db:generate`, `db:migrate`), local-only guard, seed stub                            | `libs/db`                                                    |
 | AIP-5  | Fastify API: `GET /health`, Zod env validation, `ErrorResponse` error handler, DB plugin, integration-test helpers      | `apps/api`, `libs/contracts/src/error.ts`                    |
 | AIP-6  | Structured JSON logging (pino via Fastify) with `authorization`/`cookie` redaction                                      | `apps/api/src/app.ts`                                        |
-| AIP-7  | Expo SDK 58 app with React Navigation 7 root stack and one placeholder screen                                           | `apps/mobile`, ADR 0002                                      |
+| AIP-7  | Expo SDK 58 app with React Navigation 7 root stack and one placeholder screen (moves to Expo Router in E0-S6)           | `apps/mobile`, ADR 0002                                      |
 | AIP-8  | Design-token sync: Penpot DTCG JSON → RN theme, `ThemeProvider` / `useTheme()` (tokens.json is still a **placeholder**) | `tools/scripts/sync-design-tokens.mjs`, `libs/design-tokens` |
 | AIP-9  | Mobile API client (`apiGet` + contract validation, `ApiError`), `EXPO_PUBLIC_API_URL`                                   | `apps/mobile/src/api/client.ts`                              |
 | AIP-10 | `eas.json` with development / preview / production profiles, EAS post-install hook, app scheme `greetday`               | `apps/mobile/eas.json`, `apps/mobile/app.json`               |
 
 Still missing (covered by E0 issues below): environment and secrets conventions for prod, a shared
 error-code catalogue and full API client, offline caching, development builds for native modules,
-and error tracking. Hosting, production DB and release builds are in E9; the 5-tab shell is in E1.
+error tracking, and the switch to Expo Router. Hosting, production DB and release builds are in E9; the 5-tab shell is in E1.
 
 ## 1. Summary
 
@@ -119,6 +120,9 @@ Story sizes above L show the total in days.
 | E0-S5-T1   | task  | Choose the error-tracking tool                                | E0-S5   | M3        | p1       | S      | infra                          |
 | E0-S5-T2   | task  | Report API errors to error tracking                           | E0-S5   | M3        | p1       | S      | backend                        |
 | E0-S5-T3   | task  | Report app crashes and errors to error tracking               | E0-S5   | M3        | p1       | M      | mobile                         |
+| E0-S6      | story | Navigation with Expo Router (file-based routes)               | E0      | M1        | p0       | L      | mobile                         |
+| E0-S6-T1   | task  | Replace the React Navigation setup with Expo Router           | E0-S6   | M1        | p0       | M      | mobile                         |
+| E0-S6-T2   | task  | ADR and docs for Expo Router                                  | E0-S6   | M1        | p0       | S      | mobile                         |
 | E1         | epic  | Design system                                                 | —       | M1        | p0       | —      | design, mobile                 |
 | E1-S1      | story | App theme generated from the Penpot tokens                    | E1      | M1        | p0       | L      | design, mobile                 |
 | E1-S1-T1   | task  | Import the Penpot tokens export                               | E1-S1   | M1        | p0       | S      | design                         |
@@ -248,7 +252,7 @@ Story sizes above L show the total in days.
 | E7-S4-T1   | task  | Due reminders calculation                                     | E7-S4   | M3        | p0       | S      | shared                         |
 | E7-S4-T2   | task  | Notification texts from S-15                                  | E7-S4   | M3        | p0       | S      | shared                         |
 | E7-S5      | story | Notification tap opens the right screen                       | E7      | M3        | p0       | M      | mobile                         |
-| E7-S5-T1   | task  | Deep-link config and notification tap handling                | E7-S5   | M3        | p0       | M      | mobile                         |
+| E7-S5-T1   | task  | Notification tap handling with Expo Router links              | E7-S5   | M3        | p0       | M      | mobile                         |
 | E8         | epic  | Settings & account                                            | —       | M3        | p0       | —      | mobile, backend, db            |
 | E8-S1      | story | Settings screen                                               | E8      | M3        | p0       | S      | mobile                         |
 | E8-S1-T1   | task  | Settings screen S-13                                          | E8-S1   | M3        | p0       | S      | mobile                         |
@@ -1718,6 +1722,7 @@ native modules, and error tracking. Most of ba-brief §7 E0 already exists (see 
 - Server-state cache with offline read (§6 Offline behavior)
 - `expo-dev-client` development builds (needed by Google Sign-In and push)
 - Error-tracking tool choice and integration (§6 Observability)
+- Expo Router file-based navigation in place of the hand-written React Navigation stack
 
 ## Out of scope
 
@@ -1738,6 +1743,7 @@ None directly (cross-cutting).
 - A new contributor can tell which env vars exist per environment and where secrets live.
 - API errors reach the app as typed codes and are shown as readable messages with retry.
 - The app runs as a development build on an iOS simulator and an Android device.
+- A new screen is added as a route file in `apps/mobile/src/app/` (Expo Router).
 - Errors from the API and the app appear in the chosen error-tracking tool (by M3).
 
 ### [E0-S1] Separate dev and prod environments with safe secrets
@@ -2282,6 +2288,141 @@ and upload source maps from EAS builds.
 - [ ] A test crash in a preview build shows a readable stack trace in the tool.
 - [ ] Jest tests still pass with the SDK mocked.
 
+### [E0-S6] Navigation with Expo Router (file-based routes)
+
+- Type: story
+- Parent: E0
+- Labels: type:story, area:mobile, priority:p0
+- Milestone: M1
+- Size: L
+- Blocked by: — (made Ready on the developer's request, 2026-11-03)
+
+## User story
+
+As the developer, I want the app's navigation to use Expo Router with file-based routes, so that
+adding a screen works like adding a page in Next.js and deep links come with the routes.
+
+## Context
+
+Reverses [ADR 0002](../decisions/0002-react-navigation-instead-of-expo-router.md),
+which chose React Navigation 7 with the component ("dynamic") API over Expo Router. The developer
+changed their mind on 2026-11-03. Expo Router is built on React Navigation, so stacks and tabs stay
+the same concepts; what changes is how routes are declared (files in `src/app/` instead of
+`<RootStack.Screen>`), how params are typed (typed routes instead of `RootStackParamList`), and deep
+linking (derived from the file tree instead of a hand-written `linking` config).
+
+Today: `apps/mobile/index.ts` → `src/App.tsx` (SafeAreaProvider > ThemeProvider >
+NavigationContainer) → `src/navigation/RootNavigator.tsx` (native stack, one `Home` route) +
+`types.ts` + `navigationTheme.ts`. Commit c1ab808 made the opposite move and lists every file
+involved; cac60f5 is the original Expo Router scaffold.
+
+Do this before E1-S2 (tab shell) starts, so the tabs are built once, as an Expo Router `(tabs)` layout.
+
+## Acceptance criteria
+
+- [ ] Given the app starts in Expo Go on iOS and Android, then the Home placeholder looks exactly as today (title header, token colors, safe areas).
+- [ ] Given a deep link to the root route (in Expo Go: `exp://<host>:8081/--/`), when it is opened, then the app shows Home.
+- [ ] Given a missing or invalid `EXPO_PUBLIC_*` variable, when the app starts, then it still fails fast with the readable message (env validation runs before any route renders).
+- [ ] Given `apps/mobile`, then `src/navigation/RootNavigator.tsx`, `RootStackParamList` and the `@react-navigation/native` module augmentation are gone, and routes live in `src/app/`.
+- [ ] Given `router.push()` or `<Link href>` with a path that doesn't exist, then typecheck fails (typed routes); and typecheck passes in CI on a clean checkout.
+- [ ] Given a new ADR that supersedes 0002, then the mobile CLAUDE.md, the `mobile-screen` skill, the agents, the testing rule and the onboarding doc describe Expo Router, and nothing tells you to edit `RootNavigator.tsx`.
+- [ ] `pnpm nx affected -t lint typecheck test` is green.
+
+## Business rules
+
+- None: no user-visible change.
+
+## Non-functional
+
+- §6 Accessibility: the Home title stays exposed to screen readers as a header.
+
+## Dependencies
+
+Blocked by: — (no design dependency: no visible change; made Ready on the developer's request, 2026-11-03)
+
+Blocks: E1-S2 (tab shell, built as an Expo Router `(tabs)` layout). E1-S2-T1, E1-S2-T2, E2-S3-T6
+and E7-S5 are already worded for Expo Router.
+
+## Assumptions / open questions
+
+- Assumption: `expo-router` is approved as a new dependency by this story (`pnpm exec expo install expo-router` in `apps/mobile`, plus any peers it asks for).
+- Assumption: routes live in `apps/mobile/src/app/` (Expo Router finds `src/app` on its own). Screen components stay in `src/screens/`; route files only render them, so tests stay out of `src/app/`.
+- Assumption: typed routes are on (`experiments.typedRoutes`). If they can't be made to pass CI typecheck, T1 turns them off and T2's ADR records why.
+
+## Tasks
+
+(sub-issues)
+
+### [E0-S6-T1] Replace the React Navigation setup with Expo Router
+
+- Type: task
+- Parent: E0-S6
+- Labels: type:task, area:mobile, priority:p0
+- Milestone: M1
+- Size: M
+- Blocked by: —
+
+## What
+
+Switch `apps/mobile` from the hand-written React Navigation stack to Expo Router with file-based
+routes, keeping the Home placeholder working exactly as today.
+
+## Details
+
+- **Install:** `pnpm exec expo install expo-router` inside `apps/mobile` (approved by the story); add `expo-router` to `plugins` in `app.json`. `scheme: "greetday"` is already set.
+- **Entry point:** keep env validation first. Either `index.ts` becomes `import './src/config/env'; import 'expo-router/entry';`, or `main` points at `expo-router/entry` and the env import moves to the top of the root layout. Delete `src/App.tsx` once its providers have moved.
+- **Routes in `src/app/`:**
+  - `_layout.tsx`: SafeAreaProvider > our `ThemeProvider` > React Navigation's `ThemeProvider value={navigationTheme}` (re-exported by Expo Router; alias one of them, the names clash) > `<Stack screenOptions={{ headerShown: false }} />`, plus `<StatusBar style="auto" />`.
+  - `index.tsx`: renders `HomeScreen` from `src/screens/home/`.
+- **Remove:** `src/navigation/RootNavigator.tsx`, `src/navigation/types.ts` (with the `declare module '@react-navigation/native'` augmentation). Keep `navigationTheme.ts`. Drop direct `@react-navigation/*` deps from `apps/mobile/package.json` if nothing imports them any more, then `pnpm exec expo install --check`.
+- **Typed routes:** `experiments.typedRoutes: true`. The generated `.expo/types` and `expo-env.d.ts` are git-ignored, so make `pnpm nx typecheck mobile` pass on a clean checkout (and in CI): generate them before typecheck, or turn typed routes off. Note the choice for T2's ADR.
+- **Tests:** replace `src/App.spec.tsx` with a router test using `renderRouter` from `expo-router/testing-library` (starts on Home, "GreetDay" header visible). No test files inside `src/app/` (every file there becomes a route). Adjust `src/test-setup.ts` / jest config if needed.
+- **References:** commit c1ab808 is the exact reverse of this change; cac60f5 had a working Expo Router setup in this monorepo. If Metro or pnpm resolution breaks, follow the hoisting note in the root CLAUDE.md.
+
+## Done when
+
+- [ ] Home placeholder renders in Expo Go on iOS and Android; opening `exp://<host>:8081/--/` shows Home.
+- [ ] Router test passes; `HomeScreen.spec.tsx` unchanged and passing.
+- [ ] An invalid `EXPO_PUBLIC_API_URL` still fails at startup with the readable message.
+- [ ] `pnpm nx affected -t lint typecheck test` green, also on a clean checkout with no generated `.expo/` files.
+
+## Learning notes
+
+- Expo Router ≈ Next.js App Router for React Native: `_layout.tsx` ≈ `layout.tsx`, `index.tsx` ≈ `page.tsx`, `[id].tsx` is a dynamic segment, `(tabs)` is a route group. Underneath it still renders React Navigation navigators.
+- Typed routes work like Next's `typedRoutes`: the file tree generates the type for `href`, so a typo in a path is a type error.
+
+### [E0-S6-T2] ADR and docs for Expo Router
+
+- Type: task
+- Parent: E0-S6
+- Labels: type:task, area:mobile, priority:p0
+- Milestone: M1
+- Size: S
+- Blocked by: E0-S6-T1
+
+## What
+
+Record the switch to Expo Router in a new ADR and update every doc, rule, skill and agent that
+describes React Navigation, so the next screens are built the Expo Router way.
+
+## Details
+
+- `/adr` "Expo Router instead of React Navigation" (0005), superseding 0002: set 0002's status to "Superseded by 0005" and update the note in 0001. Cover the why (developer's choice, file-based routing familiar from Next.js, deep links from the file tree), the typed-routes/CI decision from T1, and the consequences (every file in `src/app/` is a route, so tests and helpers live elsewhere).
+- Update:
+  - `apps/mobile/CLAUDE.md`: stack line, folder map, "to add a screen", typing of params (`useLocalSearchParams`, typed `href`).
+  - Root `CLAUDE.md`: repo-map row for `apps/mobile`.
+  - `.claude/agents/mobile-developer.md`, `.claude/agents/business-analyst.md`, `.claude/agents/mentor.md` (the `NavigationContainer` analogy).
+  - `.claude/rules/testing.md`: render with `renderRouter` instead of a `NavigationContainer` + stack.
+  - `.claude/skills/mobile-screen/SKILL.md` and `template.md`: a route file in `src/app/` that renders the screen, instead of a param list entry + `<RootStack.Screen>`.
+  - `docs/onboarding.md`: mobile section, diagram and glossary.
+- The backlog and the affected issues (E1-S2, E2-S3-T6, E7-S5) were already reworded on 2026-11-03. Only check they still match what T1 built and note any mismatch in the PR.
+
+## Done when
+
+- [ ] `git grep -n "RootNavigator\|RootStackParamList\|RootStack\."` finds nothing outside ADR 0002 and the backlog.
+- [ ] Following the `mobile-screen` skill produces a route file that matches T1's pattern.
+- [ ] `pnpm nx affected -t lint typecheck test` green.
+
 ### [E1] Design system
 
 - Type: epic
@@ -2451,7 +2592,7 @@ screen renders and add a `Text` component with a `variant` prop for `type.*`.
 - Labels: type:story, area:mobile, priority:p0
 - Milestone: M1
 - Size: L
-- Blocked by: E1-S1
+- Blocked by: E1-S1, E0-S6
 
 ## User story
 
@@ -2460,7 +2601,8 @@ reach every part of the app in one tap.
 
 ## Context
 
-D1, design-brief §3 (tabs, stack screens, global "+" action), ADR 0002 (React Navigation component API).
+D1, design-brief §3 (tabs, stack screens, global "+" action), Expo Router file-based routes (E0-S6 and
+the ADR that supersedes ADR 0002).
 Design: tab bar and header components from E10-S2-T5, icons from E10-S2-T1.
 
 ## Acceptance criteria
@@ -2481,7 +2623,7 @@ Design: tab bar and header components from E10-S2-T5, icons from E10-S2-T1.
 
 ## Dependencies
 
-Blocked by: E1-S1
+Blocked by: E1-S1, E0-S6
 
 ## Assumptions / open questions
 
@@ -2498,21 +2640,25 @@ Blocked by: E1-S1
 - Labels: type:task, area:mobile, priority:p0
 - Milestone: M1
 - Size: M
-- Blocked by: E10-S11 (design handoff)
+- Blocked by: E10-S11, E0-S6-T1
 
 ## What
 
-Add `@react-navigation/bottom-tabs` (ask before adding), a `MainTabs` navigator in
-`src/navigation/` with its own param list, nested in the root stack, and five placeholder screens
-with the S-xx comment. Style the tab bar with tokens (design-brief §2.2 "Bottom tab bar").
+Add a `(tabs)` route group in `apps/mobile/src/app/` whose `_layout.tsx` renders Expo Router's
+`<Tabs>`, and five placeholder tab routes with the S-xx comment, each rendering a screen component
+from `src/screens/`. Style the tab bar with tokens (design-brief §2.2 "Bottom tab bar").
 
 ## Details
 
-- Replace the current `Home` placeholder with `MainTabs` as the initial route.
+- Proposed files: `(tabs)/index.tsx` (Upcoming, the initial route), `(tabs)/calendar.tsx`,
+  `(tabs)/friends.tsx`, `(tabs)/history.tsx`, `(tabs)/settings.tsx`. The Home placeholder route
+  from E0-S6 goes away.
+- `<Tabs>` is React Navigation's bottom tabs underneath; if Expo Router asks for
+  `@react-navigation/bottom-tabs`, add it with `pnpm exec expo install` (ask before adding).
 
 ## Done when
 
-- [ ] Test: renders five tabs in order, Upcoming selected by default; pressing a tab switches screens.
+- [ ] Test (`renderRouter`): renders five tabs in order, Upcoming selected by default; pressing a tab switches screens.
 
 ### [E1-S2-T2] Stack screens and the global "+" add-friend action
 
@@ -2525,17 +2671,28 @@ with the S-xx comment. Style the tab bar with tokens (design-brief §2.2 "Bottom
 
 ## What
 
-Register placeholder stack routes with typed params (`FriendProfile { friendId }`,
-`EditFriend { friendId? }`, `Compose { friendId, text? }`, `GreetingDetail { greetingId }`,
-`ReminderSettings`, `FriendGreetings { friendId }`) and a header "+" on Upcoming, Calendar and Friends.
+Add placeholder stack routes in `apps/mobile/src/app/`, outside the `(tabs)` group so they are
+pushed over the tabs, and a header "+" on Upcoming, Calendar and Friends.
 
 ## Details
 
-- Pass ids in params, not objects (`apps/mobile/CLAUDE.md`).
+- Proposed routes (the names other stories use → file):
+
+  | Route                           | File                                                |
+  | ------------------------------- | --------------------------------------------------- |
+  | `FriendProfile { friendId }`    | `friend/[friendId]/index.tsx`                       |
+  | `EditFriend { friendId? }`      | `friend/new.tsx`, `friend/[friendId]/edit.tsx`      |
+  | `Compose { friendId, text? }`   | `compose/[friendId].tsx` (`text` as a search param) |
+  | `GreetingDetail { greetingId }` | `greeting/[greetingId].tsx`                         |
+  | `ReminderSettings`              | `reminder-settings.tsx`                             |
+  | `FriendGreetings { friendId }`  | `friend/[friendId]/greetings.tsx`                   |
+
+- Pass ids in the path or search params, not objects (`apps/mobile/CLAUDE.md`); read them with
+  `useLocalSearchParams`. Typed routes make a wrong `href` a type error.
 
 ## Done when
 
-- [ ] Test: "+" on each of the three tabs navigates to `EditFriend` without a `friendId`.
+- [ ] Test (`renderRouter`): "+" on each of the three tabs navigates to `/friend/new`.
 
 ### [E1-S3] Core components for the first-run screens
 
@@ -3357,8 +3514,9 @@ The Apple button isn't rendered on Android.
 
 ## What
 
-Root navigator renders the signed-out screens (S-01, S-02) or the main tabs based on auth status;
-splash stays visible while the session is restored.
+The root layout (`apps/mobile/src/app/_layout.tsx`) shows the signed-out routes (S-01, S-02) or the
+`(tabs)` group based on auth status, with Expo Router's protected routes (`Stack.Protected` with a
+`guard`) or a `<Redirect>`; splash stays visible while the session is restored.
 
 ## Done when
 
@@ -5937,8 +6095,8 @@ As a user, tapping a notification takes me straight to the right place, so that 
 ## Context
 
 Design-brief S-15 "Tap opens" column, flow 2 (prototype "2 · Greet from notification" in
-E10-S11-T1); ADR 0002 consequence (deep links need a `linking`
-config on `NavigationContainer`; app scheme `greetday`).
+E10-S11-T1); Expo Router (E0-S6) already makes every route a deep link (app scheme `greetday`), so
+only the notification handling is new.
 
 ## Acceptance criteria
 
@@ -5969,7 +6127,7 @@ Blocked by: E7-S4, E5-S2
 
 (sub-issues)
 
-### [E7-S5-T1] Deep-link config and notification tap handling
+### [E7-S5-T1] Notification tap handling with Expo Router links
 
 - Type: task
 - Parent: E7-S5
@@ -5980,9 +6138,10 @@ Blocked by: E7-S4, E5-S2
 
 ## What
 
-`linking` config for `greetday://` routes (compose, upcoming, friend profile) and an
-`expo-notifications` response listener (including the last response on cold start) that navigates
-using the notification `data`.
+An `expo-notifications` response listener (including the last response on cold start) that maps
+the notification `data` to an Expo Router path (`/compose/[friendId]`, Upcoming `/`,
+`/friend/[friendId]`) and navigates with `router.push`. Expo Router already opens `greetday://` links
+to every route; check these three open from a link too.
 
 ## Done when
 
@@ -7429,11 +7588,11 @@ lists `E10-S11` in `Blocked by`; E1-S1 is also blocked by the tokens export (E10
 The `product-designer` agent does the Penpot work quickly; the real calendar time is the developer's
 review of each task in Penpot, so plan one short review session per story.
 
-### M1 Foundations (about 21 dev-days)
+### M1 Foundations (about 22.5 dev-days)
 
-1. After the handoff: SP-4, SP-5 (decisions first; record each with `/adr`). In parallel: E0-S4
+1. E0-S6 (Expo Router) can start before the handoff, since it changes no screen. After the handoff: SP-4, SP-5 (decisions first; record each with `/adr`). In parallel: E0-S4
    (development builds), E0-S1, E0-S2.
-2. E1-S1 (tokens export from E10-S1-T5) → E1-S2, E1-S3.
+2. E1-S1 (tokens export from E10-S1-T5) and E0-S6 → E1-S2, E1-S3.
 3. E2-S1-T1 → E2-S2-T1 → E2-S1 (rest) → E2-S2 (server auth; contracts first: E2-S1-T2).
 4. E0-S3 (cache, offline read and the E10-S9 offline pattern, before the first data screen).
 5. E2-S3 (Sign In, session restore, navigation gating) → E2-S4 (priming).
@@ -7475,7 +7634,7 @@ review of each task in Penpot, so plan one short review session per story.
 3. E11-S2 (App Review) and E11-S3-T2 (Play production rollout), each released only after the checklist.
 4. Exit check: GreetDay is installable from the public App Store and Google Play.
 
-Total: about 24 design-days (M0) and 82 dev-days (M1–M5).
+Total: about 24 design-days (M0) and 83.5 dev-days (M1–M5).
 
 Critical path: E10-S1 → E10-S2 → E10 screen stories (E10-S3 … E10-S8) → E10-S9 / E10-S11-T1 →
 E10-S11-T3 handoff (M0 exit) → SP-4 / SP-5 → E2-S1 / E2-S2 → E2-S3 (M1 exit) → E3-S1 → E5-S1 →
